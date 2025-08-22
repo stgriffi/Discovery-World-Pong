@@ -7,3 +7,4 @@ env/
 .venv/*
 /modules/mqtt-broker/config/mosquitto.conf
 /development-tools/mqtt-explorer/config/settings.json
+*:Zone.Identifier
