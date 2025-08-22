@@ -75,7 +75,7 @@ function GamePlay() {
       );
 
       pongAPI.registerObserver(
-        PongAPI.Topics.PADDLE_BOTTOM_STATE_TRANSITION, 
+        PongAPI.Topics.PADDLE_TOP_STATE_TRANSITION, 
         onPaddleTopStateTransition
       );
 
