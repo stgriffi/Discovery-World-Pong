@@ -18,14 +18,14 @@ if (PADDLEID === 'top') {
 }
 
 console.log(`#############################`);
-// console.log(`paddleId: ${PADDLEID}`);
-// console.log(`paddleTopic: ${paddleStateTopic}`);
-// console.log(`paddleStateTransitionTopic: ${paddleStateTransitionTopic}`);
-// console.log(`interval: ${INTERVAL}`);
-// console.log(`increment: ${INCREMENT}`);
-// console.log(`max: ${MAX}`);
-// console.log(`min: ${MIN}`);
-// console.log(`******************************`); 
+console.log(`paddleId: ${PADDLEID}`);
+console.log(`paddleTopic: ${paddleStateTopic}`);
+console.log(`paddleStateTransitionTopic: ${paddleStateTransitionTopic}`);
+console.log(`interval: ${INTERVAL}`);
+console.log(`increment: ${INCREMENT}`);
+console.log(`max: ${MAX}`);
+console.log(`min: ${MIN}`);
+console.log(`******************************`); 
 
 const Controller = ({pongAPIRef}) => {
   const [position, setPosition] = useState(0.5);
