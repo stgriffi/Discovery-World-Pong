@@ -303,18 +303,6 @@ function GamePlay() {
         map={gameboardTexture} 
       />
 
-      {/* <Goal 
-        position={[0, gameboardHeight / 2 + ballRadius * 2, 0]} 
-        args={[gameboardWidth, goalWidth, ballRadius * 5]} 
-        onGoal={handleTopGoal} 
-      />
-
-      <Goal 
-        position={[0, -gameboardHeight / 2 - ballRadius * 2, 0]} 
-        args={[gameboardWidth, goalWidth, ballRadius * 5]}
-        onGoal={handleBottomGoal} 
-      /> */}
-
       <Wall 
         position={[gameboardWidth / 2, 0, 0]} 
         args={[wallWidth, gameboardHeight]} 
@@ -343,13 +331,11 @@ function GamePlay() {
         handleCollision={handleCollision}
       />
 
-      {isBallReset && (
         <Ball 
           position={ballStartPosition} 
-          args={[ballRadius, 64, 64]}  
+          args={[ballRadius, 32, 32]}  
           color="rgb(255,255,255)" 
         />
-      )}
 
     </group>
   );
