@@ -132,57 +132,57 @@ function GamePlay() {
         case "noCountdown":
           break;
         case "play":
-          try {
-            if (ballRef && ballRef.current) {
-              const ballPosition = ballRef.current.translation();
-              ballPosition.x = Math.round(ballPosition.x);
-              ballPosition.y = Math.round(ballPosition.y);
-              ballPosition.z = Math.round(ballPosition.z);
+          // try {
+          //   if (ballRef && ballRef.current) {
+          //     const ballPosition = ballRef.current.translation();
+          //     ballPosition.x = Math.round(ballPosition.x);
+          //     ballPosition.y = Math.round(ballPosition.y);
+          //     ballPosition.z = Math.round(ballPosition.z);
   
-              if (ballPosition.x != prevBallPosition.x || 
-                ballPosition.y != prevBallPosition.y) 
-              {
-                const message = {
-                  "ball": {
-                    "position": {
-                      "x": ballPosition.x,
-                      "y": ballPosition.y
-                    }
-                  },
-                  "paddle_top": {
-                    "position": {
-                      "x": topPaddlePosition
-                    }
-                  },
-                  "paddle_bottom": {
-                    "position": {
-                      "x":bottomPaddlePosition
-                    }
-                  }
-                };
+          //     if (ballPosition.x != prevBallPosition.x || 
+          //       ballPosition.y != prevBallPosition.y) 
+          //     {
+          //       const message = {
+          //         "ball": {
+          //           "position": {
+          //             "x": ballPosition.x,
+          //             "y": ballPosition.y
+          //           }
+          //         },
+          //         "paddle_top": {
+          //           "position": {
+          //             "x": topPaddlePosition
+          //           }
+          //         },
+          //         "paddle_bottom": {
+          //           "position": {
+          //             "x":bottomPaddlePosition
+          //           }
+          //         }
+          //       };
           
-                pongAPI.update(PongAPI.Topics.GAME_PLAY, message );
-                // setPrevBallPosition(ballPosition); // causes issues with the ball
-              }
+          //       pongAPI.update(PongAPI.Topics.GAME_PLAY, message );
+          //       // setPrevBallPosition(ballPosition); // causes issues with the ball
+          //     }
   
-              if (ballPosition.y > 90) {
-                setBottomScore((prev) => prev + 1);
-                gamePlayStateMachine.startPlayReset();
-              }
+          //     if (ballPosition.y > 90) {
+          //       setBottomScore((prev) => prev + 1);
+          //       gamePlayStateMachine.startPlayReset();
+          //     }
   
-              if (ballPosition.y < -90) {     
-                if (level === 3) {
-                  setTopScore((prev) => prev + 1);   
-                  gamePlayStateMachine.endGame();
-                } else {
-                  setTopScore((prev) => prev + 1);
-                  gamePlayStateMachine.startPlayReset();
-                }
-              }
-            }
-          } catch (error) {
-            console.log(`Error: ${error.message}`);
-          }               
+          //     if (ballPosition.y < -90) {     
+          //       if (level === 3) {
+          //         setTopScore((prev) => prev + 1);   
+          //         gamePlayStateMachine.endGame();
+          //       } else {
+          //         setTopScore((prev) => prev + 1);
+          //         gamePlayStateMachine.startPlayReset();
+          //       }
+          //     }
+          //   }
+          // } catch (error) {
+          //   console.log(`Error: ${error.message}`);
+          // }               
           break;
         case "gameComplete":
           gamePlayStateMachine.startGameReset();
@@ -255,40 +255,41 @@ function GamePlay() {
 
   // Function to handle collision events using useCallback
   const handleCollision = useCallback((event) => {
-    // Extract the rigid body of the colliding object and the target object from the event
-    const otherObject = event.rigidBody;
-    const targetObject = event.target.rigidBody;
+    console.log("handleCollision");
+    // // Extract the rigid body of the colliding object and the target object from the event
+    // const otherObject = event.rigidBody;
+    // const targetObject = event.target.rigidBody;
 
-    // Check if the colliding object is a ball and the target object is a paddle
-    if (otherObject.userData && otherObject.userData.isBall && 
-      targetObject.userData && targetObject.userData.isPaddle) {
+    // // Check if the colliding object is a ball and the target object is a paddle
+    // if (otherObject.userData && otherObject.userData.isBall && 
+    //   targetObject.userData && targetObject.userData.isPaddle) {
 
-      // Play an audio clip for the paddle hit using the audio player reference
-      audioPlayer.play('paddleHit').catch((error) => {
-        console.error('Error playing audio:', error);
-      });
+    //   // Play an audio clip for the paddle hit using the audio player reference
+    //   audioPlayer.play('paddleHit').catch((error) => {
+    //     console.error('Error playing audio:', error);
+    //   });
 
-      // Calculate the collision point on the paddle
-      const collisionPoint = event.manifold.localContactPoint1().x;
-      const regionIndex = Math.min(7, Math.floor((collisionPoint + (paddleWidth / 2)) / 2.5))
+    //   // Calculate the collision point on the paddle
+    //   const collisionPoint = event.manifold.localContactPoint1().x;
+    //   const regionIndex = Math.min(7, Math.floor((collisionPoint + (paddleWidth / 2)) / 2.5))
 
-      // Check if the region index is within the valid range of angles array
-      if (regionIndex >= 0 && regionIndex < angles.length) {
-        // Convert the angle to radians
-        const radians = (angles[regionIndex] * (Math.PI / 180));
-        // Calculate the new velocity for the ball based on the collision point and angle
-        // Adjust y based on whether it's the top or bottom paddle
-        const newVelocity = {
-          x: speed * Math.sin(radians),
-          y: speed * Math.cos(radians) * (targetObject.isTop ? -1 : 1), 
-          z: 0,
-        };   
+    //   // Check if the region index is within the valid range of angles array
+    //   if (regionIndex >= 0 && regionIndex < angles.length) {
+    //     // Convert the angle to radians
+    //     const radians = (angles[regionIndex] * (Math.PI / 180));
+    //     // Calculate the new velocity for the ball based on the collision point and angle
+    //     // Adjust y based on whether it's the top or bottom paddle
+    //     const newVelocity = {
+    //       x: speed * Math.sin(radians),
+    //       y: speed * Math.cos(radians) * (targetObject.isTop ? -1 : 1), 
+    //       z: 0,
+    //     };   
 
-        // console.log("ballRef.current before setLinvel:", JSON.stringify(newVelocity, null, 2));
-        // Set the new linear velocity for the ball   
-        otherObject.setLinvel(newVelocity, true);
-      }
-    }
+    //     // console.log("ballRef.current before setLinvel:", JSON.stringify(newVelocity, null, 2));
+    //     // Set the new linear velocity for the ball   
+    //     otherObject.setLinvel(newVelocity, true);
+    //   }
+    // }
   }, []);
 
   return (

@@ -89,9 +89,9 @@ const GamePlayStateMachine = () => {
                 onPlay: () => {
                     console.log('GamePlayStateMachine play state');
 
-                    if (ballRef && ballRef.current) {
-                        ballRef.current.setLinvel({ x: 0, y: speed, z: 0 }, true);
-                    }  
+                    // if (ballRef && ballRef.current) {
+                    //     ballRef.current.setLinvel({ x: 0, y: speed, z: 0 }, true);
+                    // }  
                 },
                 onGameComplete: () => {
                     console.log('GamePlayStateMachine gameComplete state');
