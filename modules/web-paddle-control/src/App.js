@@ -33,7 +33,8 @@ function App() {
   // console.log("fullClientId: ", fullClientId);
 
   // const pongAPI = new PongAPI(fullClientId, brokerUrl);
-  const pongAPIRef = useRef(new PongAPI(fullClientId, brokerUrl));
+  // const pongAPIRef = useRef(new PongAPI(fullClientId, brokerUrl));
+  const pongAPIRef = useRef(null); // Use useRef to store the PongAPI instance
 
   useEffect(() => {
 
@@ -58,6 +59,10 @@ function App() {
     document.title = title;
 
     // pongAPI.start();
+    if (!pongAPIRef.current) {
+      pongAPIRef.current = PongAPI(fullClientId, brokerUrl);
+    }
+
     if (pongAPIRef.current) {
       pongAPIRef.current.start();
     }

@@ -21,26 +21,26 @@ for a specific use case.
     - Example: `docker compose --profile prod up`
 - **dev:** Build additional development containers including a mqtt gui and a 
            single screen containing all exhibit screens
-    - When using prod, you _must_ select the top and bottom players as well.
+    - When using dev, you _must_ select the top and bottom players as well.
             To match the exhibit, use profiles `top-player-ai-gpu` and 
             `bottom-player-depth` as such: `docker compose --profile dev 
             --profile top-player-ai-gpu --profile bottom-player-depth up`. 
             The following 'players' are available:
         - `top-player-ai-gpu` This is the AI player used in the exhibit. Expects
             an Nvidia GPU and appropiate docker configuration with Nvidia
-            container toolkit
+            container toolkit.
         - `top-player-ai-cpu` The exact same AI player used in the exhibit, but
             configured to expect to use CPU inferencing rather than GPU. Very
-            CPU intesive
+            CPU intesive.
         - `bottom-player-depth` The 'human player' used in the exhibit. Uses
             an Intel Realsense depth camera to detect the human player and move
-            the paddle accordingly
+            the paddle accordingly.
         - `top-player-web` debugging controller that gives left and right
             buttons to click on the move the top paddle. Access via 
-            `localhost:5004`
+            `localhost:5004`.
         - `bottom-player-web` debugging controller that gives left and right
             buttons to click on the move the bottom paddle. Access via 
-            `localhost:5005`
+            `localhost:5005`.
 
 Rockwell Automation requires all machines (incl containers) to have a ZScaler
 SSL certificate installed in order to connect to the internet. These containers
@@ -91,6 +91,10 @@ To manually open the windows, open an internet browser to the following sites:
 [http://localhost:5002](http://localhost:5002)
 ##### Clocktower Visualizer
 [http://localhost:5003](http://localhost:5003)
+##### Top Player Web Paddle
+[http://localhost:5004](http://localhost:5004)
+##### Bottom Player Web Paddle
+[http://localhost:5005](http://localhost:5005)
 
 To close all GUI windows, run the following
 ```
