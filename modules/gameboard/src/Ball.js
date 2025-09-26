@@ -1,35 +1,38 @@
 import { useThree } from "@react-three/fiber"
-import { RigidBody } from '@react-three/rapier';
-// import {useGamePlayContext} from './GamePlayContext';
-import { useRef } from "react"
+import { RigidBody, CuboidCollider } from '@react-three/rapier';
+import {useGamePlayContext} from './GamePlayContext';
+// import { useRef } from "react"
 
 const Ball = ({ position, args, color  }) => {
-  // const {
-  //   ballRef,
-  // } = useGamePlayContext();
+  const {
+    ballRef,
+  } = useGamePlayContext();
 
-  const ref = useRef()
   const { viewport } = useThree()
 
   const onCollisionEnter = () => (
-    ref.current.setTranslation(position),
-    ref.current.setLinvel({ x: 0, y: 100, z: 0 })
+    console.log("ball onCollisionEnter"),
+    ballRef.current.setTranslation(position),
+    ballRef.current.setLinvel({ x: 0, y: 100, z: 0 })
   )
 
   return (
     <>
       <RigidBody
-        ref={ref}
+        ref={ballRef}
         position={position}
+        linvel={[0, 100, 0]}
         colliders="ball"
+        mass={1}
         restitution={1.0}
         friction={0.0}>
         <mesh >
           <sphereGeometry args={args} />
-          <meshStandardMaterial color={color} />
+          <meshStandardMaterial />
         </mesh>
       </RigidBody>
       <RigidBody
+        name="TopBoundry"
         type="fixed"
         colliders={false}
         position={[0, viewport.height, 0]}
@@ -37,6 +40,7 @@ const Ball = ({ position, args, color  }) => {
         <CuboidCollider args={[viewport.width, 2, viewport.width]} />
       </RigidBody>
       <RigidBody
+        name="BottomBoundry"
         type="fixed"
         colliders={false}
         position={[0, -viewport.height, 0]}

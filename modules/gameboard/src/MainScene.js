@@ -23,14 +23,8 @@ function CameraController() {
 }
 
 function MainScene() {
-
-  // const {
-  //   isGamePlayComplete,
-  // } = useGameContext();
-
   return (
     <Canvas mode="concurrent">
-      {/* <Game/> */}
       <ambientLight intensity={1.5} />
       <CameraController />
       <Suspense fallback={null} >
@@ -38,12 +32,6 @@ function MainScene() {
         <Game/>
         </Physics>   
       </Suspense>
-       
-      {/* <axesHelper args={[2]} position={[11, 4, -3]} />
-      <gridHelper args={[200, 20, 'red', 'white']} />
-      <GizmoHelper alignment='bottom-right' margin={[80, 80]}>
-        <GizmoViewport axisColors={['red', 'green', 'blue']} labelColor="black" />
-      </GizmoHelper> */}
     </Canvas>
   );
 }
