@@ -50,7 +50,9 @@ function GamePlay() {
     isBallReset,
     setIsBallReset,
     ballRef,
-  } = useGamePlayContext();  
+  } = useGamePlayContext();
+
+  // const [isBallReset, setIsBallReset] = useState(true);
   
   const topPaddleRef = useRef();
   const bottomPaddleRef = useRef();
@@ -99,39 +101,38 @@ function GamePlay() {
         case "gameStarted":
           break;            
         case "gameReset":
-          if(!isBallReset) {
-            setIsBallReset(true);                  
-          } else {
-            if (!isTopPaddleReset
-              || !isBottomPaddleReset) {
-                setIsBallReset(true);   
-            }
-          }
+          setIsBallReset(true);
+          // if(!isBallReset) {
+          //   setIsBallReset(true);                  
+          // } else {
+          //   if (!isTopPaddleReset || !isBottomPaddleReset) {
+          //       setIsBallReset(true);   
+          //   }
+          // }
           break;
         case "levelReset":
-          if(!isBallReset) {
-            setIsBallReset(true);                  
-          } else {
-            if (!isTopPaddleReset
-              || !isBottomPaddleReset) {
-                setIsBallReset(true);   
-            }
-          }
+          setIsBallReset(true);
+          // if(!isBallReset) {
+          //   setIsBallReset(true);                  
+          // } else {
+          //   if (!isTopPaddleReset || !isBottomPaddleReset) {
+          //     setIsBallReset(true);   
+          //   }
+          // }
           break;
         case "playReset":
-            if (isTopPaddleReset
-              && isBottomPaddleReset
-              && isBallReset) {
-                gamePlayStateMachine.startNoCountdown();
-              } else {
-                setIsBallReset(true);
-              }
+            if (isTopPaddleReset && isBottomPaddleReset && isBallReset) {
+              gamePlayStateMachine.startNoCountdown();
+            } else {
+              setIsBallReset(true);
+            }
           break;
         case "countdown":
           break;
         case "noCountdown":
           break;
         case "play":
+          setIsBallReset(false);
           // try {
           //   if (ballRef && ballRef.current) {
           //     const ballPosition = ballRef.current.translation();
@@ -191,18 +192,18 @@ function GamePlay() {
           }
       
           if (bottomScore < topScore) {
-              setCountdown(TEXT.tyler_wins);
+            setCountdown(TEXT.tyler_wins);
           }
       
           if (bottomScore == topScore) {
-              setCountdown(TEXT.draw);
+            setCountdown(TEXT.draw);
           }
 
           const message = {
             "transition": "level3_complete"
           };
 
-          pongAPI.update(PongAPI.Topics.GAME_STATE, message );
+          pongAPI.update(PongAPI.Topics.GAME_STATE, message);
         break;
         default:
           console.log("Unknown state");
@@ -333,8 +334,9 @@ function GamePlay() {
 
         <Ball 
           position={ballStartPosition} 
-          args={[ballRadius, 32, 32]}  
-          color="rgb(255,255,255)" 
+          args={[ballRadius, 32, 32]}
+          isReset={isBallReset}
+          // color="rgb(255,255,255)" 
         />
 
     </group>

@@ -92,12 +92,12 @@ const Game = () => {
       <GamePlayStateMachine />
       {isGamePlayComplete ? (
         <group>
-          <GameInstructionsHud/>
+          <GameInstructionsHud />
         </group>  
       ) : (
         <group> 
-          <GamePlay/>
-          <GamePlayHud/>
+          <GamePlay />
+          <GamePlayHud />
         </group>
       )}
     </group>

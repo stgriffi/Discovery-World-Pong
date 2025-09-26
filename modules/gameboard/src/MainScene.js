@@ -24,12 +24,12 @@ function CameraController() {
 
 function MainScene() {
   return (
-    <Canvas mode="concurrent">
+    <Canvas>
       <ambientLight intensity={1.5} />
       <CameraController />
-      <Suspense fallback={null} >
-        <Physics gravity={[0, 0, 0]} >
-        <Game/>
+      <Suspense fallback={null}>
+        <Physics gravity={[0, 0, 0]}>
+          <Game />
         </Physics>   
       </Suspense>
     </Canvas>
