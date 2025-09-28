@@ -1,27 +1,23 @@
-import React, { useCallback } from 'react';
-import { RigidBody } from '@react-three/rapier';
+import { useThree } from "@react-three/fiber"
+import { RigidBody, CuboidCollider, CoefficientCombineRule} from '@react-three/rapier';
 
-function Goal({ position, args, onGoal }) {
-  const handleIntersectionExit = useCallback(() => {
-    onGoal();
-   }, []);
+function Goal({ isTop, onGoal }) {
+  const { viewport } = useThree()
+  const thickness = 2;
+  const goalName = isTop ? "TopGoal" : "BottomGoal";
+  const y_position = isTop ? viewport.height : -viewport.height;
 
   return (
-    <RigidBody 
-      position={position} 
-      sensor 
-      colliders="cuboid" 
-      onIntersectionEnter={handleIntersectionExit} 
-      userData={{ isGoal: true }}
+    <RigidBody
+      name={goalName}
+      type="fixed"
+      colliders={false}
+      restitution={0}
+      restitutionCombineRule={CoefficientCombineRule.Min}
+      position={[0, y_position, 0]}
+      onCollisionEnter={onGoal}
     >
-    <mesh>
-        <boxGeometry args={args} />
-        <meshStandardMaterial  
-          color="green" 
-          transparent 
-          opacity={1.0} 
-        />
-      </mesh>
+    <CuboidCollider args={[2*viewport.width, thickness, viewport.width]} />    
     </RigidBody>
   );
 }

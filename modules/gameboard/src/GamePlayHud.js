@@ -43,14 +43,14 @@ function GamePlayHud() {
             image={IMAGES.score}
           />
           <Text 
-            position={[0.0, 0.2, 0.0]} 
+            position={[0.0, 0.2, 0.1]} 
             font={mainFont} 
             fontSize={1.2} 
             color="black" 
             text={topScore}
           />
           <Text 
-            position={[0.0, -1.6, 0.0]} 
+            position={[0.0, -1.6, 0.1]} 
             font={mainFont} 
             fontSize={1.2} 
             color="black" 

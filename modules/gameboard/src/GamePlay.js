@@ -9,7 +9,7 @@ import * as TEXT from './loadText';
 import Gameboard from './Gameboard';
 import Ball from './Ball';
 import Paddle from './Paddle';
-// import Goal from './Goal';
+import Goal from './Goal';
 import Wall from './Wall';
 
 const gameboardHeight = 160; // height used in AI 
@@ -18,10 +18,10 @@ const gameboardZ = -3.0;
 const paddleWidth = 20;
 const paddleHeigth = 3.0;
 const paddlePadding = 3.0
-const ballRadius = 4.0;
 const wallWidth = 1.0;
 // const goalWidth = 0.1;
-const ballStartPosition = [0, -(gameboardHeight / 2) + 10, 0];
+// const ballStartPosition = [0, -(gameboardHeight / 2) + 10, 0];
+const ballStartPosition = {x: 0, y: -(gameboardHeight / 2) + 10, z: 0};
 const angles = [-60, -45, -30, 0, 0, 30, 45, 60]; // Bounce angles
 
 function GamePlay() {
@@ -94,9 +94,7 @@ function GamePlay() {
   }, []);
 
   useFrame(() => {
-    if (gamePlayStateMachine 
-      && pongAPI 
-      &&  pongAPI.isConnected()) {
+    if (gamePlayStateMachine && pongAPI && pongAPI.isConnected()) {
       switch (gamePlayStateMachine.state) {
         case "gameStarted":
           break;            
@@ -121,6 +119,7 @@ function GamePlay() {
           // }
           break;
         case "playReset":
+          console.log("playReset state");
             if (isTopPaddleReset && isBottomPaddleReset && isBallReset) {
               gamePlayStateMachine.startNoCountdown();
             } else {
@@ -247,12 +246,12 @@ function GamePlay() {
   const onPaddleTopPosition = (message) => {
     const paddlePosition = message.position.x;
     setTopPaddlePosition(paddlePosition);   
-  }
+  };
 
   const onPaddleBottomPosition = (message) => {
       const paddlePosition = message.position.x;
       setBottomPaddlePosition(paddlePosition);        
-  }  
+  };
 
   // Function to handle collision events using useCallback
   const handleCollision = useCallback((event) => {
@@ -293,6 +292,26 @@ function GamePlay() {
     // }
   }, []);
 
+  const onTopGoal = () => {
+    // console.log("Player Scores");
+    // console.log(`  topScore=${topScore}, bottomScore=${bottomScore}`);
+    setBottomScore((prev) => prev + 1);
+    gamePlayStateMachine.startPlayReset();
+  };
+
+  const onBottomGoal = () => {
+    // console.log(`TYLER Scores, level=${level}`);
+    if (level === 3) {
+      // console.log(`  End Game, topScore=${topScore}, bottomScore=${bottomScore}`);
+      setTopScore((prev) => prev + 1);
+      gamePlayStateMachine.endGame();
+    } else {
+      // console.log(`  topScore=${topScore}, bottomScore=${bottomScore}`);
+      setTopScore((prev) => prev + 1);
+      gamePlayStateMachine.startPlayReset();
+    }
+  };
+
   return (
     // Goal component was an attempt to use Rapier sensor to register goal but
     // it was duplicating collisions.
@@ -332,12 +351,21 @@ function GamePlay() {
         handleCollision={handleCollision}
       />
 
-        <Ball 
-          position={ballStartPosition} 
-          args={[ballRadius, 32, 32]}
-          isReset={isBallReset}
-          // color="rgb(255,255,255)" 
-        />
+      <Goal
+        isTop={true}
+        onGoal={onTopGoal}
+      />
+
+      <Goal
+        isTop={false}
+        onGoal={onBottomGoal}
+      />
+
+      <Ball 
+        initPosition={ballStartPosition}
+        initSpeed={100}
+        isReset={isBallReset}
+      />
 
     </group>
   );
