@@ -1,8 +1,13 @@
 import { RigidBody } from '@react-three/rapier';
 import { useRef, useEffect } from "react"
+import {useGamePlayContext} from './GamePlayContext';
 
 const Ball = ({ initPosition, initSpeed, isReset }) => {
-  const ballRef = useRef();
+  const {
+      ballRef,
+  } = useGamePlayContext();  
+  
+  // const ballRef = useRef();
   const ballRadius = 4.0;
   const ballSegments = 32;
 

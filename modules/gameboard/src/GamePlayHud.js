@@ -7,26 +7,11 @@ import HudImage from './HudImage';
 
 function GamePlayHud() {
   const {
-    audioPlayer,
     level,
     countdown, 
     topScore, 
     bottomScore
   } = useGamePlayContext();
-
-  // useEffect(() => {
-  //   console.log("888888888888888888888888888888888");
-  //   audioPlayer.play('paddleHit').catch((error) => {
-  //     console.error('Error playing audio:', error);
-  //   });
-  // }, [topScore]);
-
-  // useEffect(() => {
-  //   console.log("7777777777777777777777777777777777");
-  //   audioPlayer.play('paddleHit').catch((error) => {
-  //     console.error('Error playing audio:', error);
-  //   });
-  // }, [bottomScore]);
 
   return (
     <Hud>
@@ -66,7 +51,7 @@ function GamePlayHud() {
             color="white" 
             text={'LEVEL:'}
           />
-        ` <Text 
+        ` <Text // FIX ME? Is the backtick on the beginning of this line supposed to be there?
             position={[1.6, 0.0, 0.0]} 
             font={mainFont} 
             fontSize={0.8} 

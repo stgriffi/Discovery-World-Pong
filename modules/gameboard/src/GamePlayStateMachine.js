@@ -12,13 +12,11 @@ const GamePlayStateMachine = () => {
     } = useGameContext();
 
     const {
-        speed,
         delay,
         setCountdown,
         setIsTopPaddleReset,
         setIsBottomPaddleReset,
         setIsBallReset,
-        ballRef,
     } = useGamePlayContext();  
 
     useEffect(() => {
@@ -48,7 +46,7 @@ const GamePlayStateMachine = () => {
                     setIsBallReset(false);
     
                     const message =  { "transition": "reset" };
-                    pongAPI.update(PongAPI.Topics.PADDLE_TOP_STATE_TRANSITION ,message );
+                    pongAPI.update(PongAPI.Topics.PADDLE_TOP_STATE_TRANSITION, message );
                     pongAPI.update(PongAPI.Topics.PADDLE_BOTTOM_STATE_TRANSITION, message ); 
                 },
                 onPlayReset: () => {
@@ -58,7 +56,7 @@ const GamePlayStateMachine = () => {
                     setIsBallReset(false);
         
                     const message =  { "transition": "reset" };
-                    pongAPI.update(PongAPI.Topics.PADDLE_TOP_STATE_TRANSITION ,message );
+                    pongAPI.update(PongAPI.Topics.PADDLE_TOP_STATE_TRANSITION, message );
                     pongAPI.update(PongAPI.Topics.PADDLE_BOTTOM_STATE_TRANSITION, message );
                 },
                 onCountdown: () => {
@@ -88,10 +86,6 @@ const GamePlayStateMachine = () => {
                 },
                 onPlay: () => {
                     console.log('GamePlayStateMachine play state');
-
-                    if (ballRef && ballRef.current) {
-                        ballRef.current.setLinvel({ x: 0, y: speed, z: 0 }, true);
-                    }  
                 },
                 onGameComplete: () => {
                     console.log('GamePlayStateMachine gameComplete state');

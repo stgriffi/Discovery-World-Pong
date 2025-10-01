@@ -20,9 +20,9 @@ const paddleHeigth = 3.0;
 const paddlePadding = 3.0
 const wallWidth = 1.0;
 // const goalWidth = 0.1;
-// const ballStartPosition = [0, -(gameboardHeight / 2) + 10, 0];
 const ballStartPosition = {x: 0, y: -(gameboardHeight / 2) + 10, z: 0};
-const angles = [-60, -45, -30, 0, 0, 30, 45, 60]; // Bounce angles
+let prevBallPosition = ballStartPosition;
+// const angles = [-60, -45, -30, 0, 0, 30, 45, 60]; // Bounce angles
 
 function GamePlay() {
 
@@ -62,8 +62,6 @@ function GamePlay() {
 
   const gameboardTexture = useLoader(THREE.TextureLoader, IMAGES.gameboard);
 
-  const [prevBallPosition, setPrevBallPosition] = useState({x: 0.0, y: 0.0, z: 0.0});
-
   useEffect(() => {
     if (pongAPI) {
       pongAPI.registerObserver(
@@ -100,31 +98,16 @@ function GamePlay() {
           break;            
         case "gameReset":
           setIsBallReset(true);
-          // if(!isBallReset) {
-          //   setIsBallReset(true);                  
-          // } else {
-          //   if (!isTopPaddleReset || !isBottomPaddleReset) {
-          //       setIsBallReset(true);   
-          //   }
-          // }
           break;
         case "levelReset":
           setIsBallReset(true);
-          // if(!isBallReset) {
-          //   setIsBallReset(true);                  
-          // } else {
-          //   if (!isTopPaddleReset || !isBottomPaddleReset) {
-          //     setIsBallReset(true);   
-          //   }
-          // }
           break;
         case "playReset":
-          console.log("playReset state");
-            if (isTopPaddleReset && isBottomPaddleReset && isBallReset) {
-              gamePlayStateMachine.startNoCountdown();
-            } else {
-              setIsBallReset(true);
-            }
+          if (isTopPaddleReset && isBottomPaddleReset && isBallReset) {  // What case is this handling?
+            gamePlayStateMachine.startNoCountdown();
+          } else {
+            setIsBallReset(true);
+          }
           break;
         case "countdown":
           break;
@@ -132,57 +115,41 @@ function GamePlay() {
           break;
         case "play":
           setIsBallReset(false);
-          // try {
-          //   if (ballRef && ballRef.current) {
-          //     const ballPosition = ballRef.current.translation();
-          //     ballPosition.x = Math.round(ballPosition.x);
-          //     ballPosition.y = Math.round(ballPosition.y);
-          //     ballPosition.z = Math.round(ballPosition.z);
+          try {
+            if (ballRef && ballRef.current) {
+              const ballPosition = ballRef.current.translation();
+              ballPosition.x = Math.round(ballPosition.x);
+              ballPosition.y = Math.round(ballPosition.y);
+              ballPosition.z = Math.round(ballPosition.z);
   
-          //     if (ballPosition.x != prevBallPosition.x || 
-          //       ballPosition.y != prevBallPosition.y) 
-          //     {
-          //       const message = {
-          //         "ball": {
-          //           "position": {
-          //             "x": ballPosition.x,
-          //             "y": ballPosition.y
-          //           }
-          //         },
-          //         "paddle_top": {
-          //           "position": {
-          //             "x": topPaddlePosition
-          //           }
-          //         },
-          //         "paddle_bottom": {
-          //           "position": {
-          //             "x":bottomPaddlePosition
-          //           }
-          //         }
-          //       };
+              if (ballPosition.x != prevBallPosition.x || ballPosition.y != prevBallPosition.y) 
+              {
+                const message = {
+                  "ball": {
+                    "position": {
+                      "x": ballPosition.x,
+                      "y": ballPosition.y
+                    }
+                  },
+                  "paddle_top": {
+                    "position": {
+                      "x": topPaddlePosition
+                    }
+                  },
+                  "paddle_bottom": {
+                    "position": {
+                      "x":bottomPaddlePosition
+                    }
+                  }
+                };
           
-          //       pongAPI.update(PongAPI.Topics.GAME_PLAY, message );
-          //       // setPrevBallPosition(ballPosition); // causes issues with the ball
-          //     }
-  
-          //     if (ballPosition.y > 90) {
-          //       setBottomScore((prev) => prev + 1);
-          //       gamePlayStateMachine.startPlayReset();
-          //     }
-  
-          //     if (ballPosition.y < -90) {     
-          //       if (level === 3) {
-          //         setTopScore((prev) => prev + 1);   
-          //         gamePlayStateMachine.endGame();
-          //       } else {
-          //         setTopScore((prev) => prev + 1);
-          //         gamePlayStateMachine.startPlayReset();
-          //       }
-          //     }
-          //   }
-          // } catch (error) {
-          //   console.log(`Error: ${error.message}`);
-          // }               
+                pongAPI.update(PongAPI.Topics.GAME_PLAY, message );
+                prevBallPosition = ballPosition;
+              }
+            }
+          } catch (error) {
+            console.log(`Error: ${error.message}`);
+          }               
           break;
         case "gameComplete":
           gamePlayStateMachine.startGameReset();
@@ -293,29 +260,21 @@ function GamePlay() {
   }, []);
 
   const onTopGoal = () => {
-    // console.log("Player Scores");
-    // console.log(`  topScore=${topScore}, bottomScore=${bottomScore}`);
     setBottomScore((prev) => prev + 1);
     gamePlayStateMachine.startPlayReset();
   };
 
   const onBottomGoal = () => {
-    // console.log(`TYLER Scores, level=${level}`);
     if (level === 3) {
-      // console.log(`  End Game, topScore=${topScore}, bottomScore=${bottomScore}`);
       setTopScore((prev) => prev + 1);
       gamePlayStateMachine.endGame();
     } else {
-      // console.log(`  topScore=${topScore}, bottomScore=${bottomScore}`);
       setTopScore((prev) => prev + 1);
       gamePlayStateMachine.startPlayReset();
     }
   };
 
   return (
-    // Goal component was an attempt to use Rapier sensor to register goal but
-    // it was duplicating collisions.
-
     <group position={[0, 0, 0]} >
       <Gameboard 
         position={[0.0, 0.0, gameboardZ]} 

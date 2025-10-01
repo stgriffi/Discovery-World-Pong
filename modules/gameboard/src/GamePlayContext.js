@@ -19,7 +19,6 @@ const GamePlayProvider = ({ children }) => {
   const [topPaddleState, setTopPaddleState] = useState("not_ready");
   const [bottomPaddlePosition, setBottomPaddlePosition] = useState(0.5);
   const [bottomPaddleState, setBottomPaddleState] = useState("not_ready");
-  const [ballPosition, setBallPosition] = useState({x: 0.0, y: 0.0});
   const [isTopPaddleReset, setIsTopPaddleReset] = useState(false);
   const [isBottomPaddleReset, setIsBottomPaddleReset] = useState(false);
   const [isBallReset, setIsBallReset] = useState(true);
@@ -40,7 +39,6 @@ const GamePlayProvider = ({ children }) => {
       topPaddleState, setTopPaddleState,
       bottomPaddlePosition, setBottomPaddlePosition,
       bottomPaddleState, setBottomPaddleState,
-      ballPosition, setBallPosition,
       isTopPaddleReset, setIsTopPaddleReset,
       isBottomPaddleReset, setIsBottomPaddleReset,
       isBallReset, setIsBallReset,
