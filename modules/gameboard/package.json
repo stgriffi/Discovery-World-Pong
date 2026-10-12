@@ -46,5 +46,10 @@
   },
   "devDependencies": {
     "typescript": "^4.9.5"
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^(mqtt|ajv|uuid|javascript-state-machine)$": "<rootDir>/node_modules/$1"
+    }
   }
 }
