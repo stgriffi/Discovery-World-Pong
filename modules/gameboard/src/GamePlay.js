@@ -57,8 +57,8 @@ function GamePlay() {
   const topPaddleRef = useRef();
   const bottomPaddleRef = useRef();
 
-  // const max = (gameboardWidth - paddleWidth) / 2;
-  // const min = -max;
+  const max = (gameboardWidth - paddleWidth) / 2;
+  const min = -max;
 
   const gameboardTexture = useLoader(THREE.TextureLoader, IMAGES.gameboard);
 
@@ -115,9 +115,8 @@ function GamePlay() {
           break;
         case "play":
           setIsBallReset(false);
-
           try {
-            if (ballRef.current) {
+            if (ballRef && ballRef.current) {
               const ballPosition = ballRef.current.translation();
               ballPosition.x = Math.round(ballPosition.x);
               ballPosition.y = Math.round(ballPosition.y);
@@ -139,7 +138,7 @@ function GamePlay() {
                   },
                   "paddle_bottom": {
                     "position": {
-                      "x": bottomPaddlePosition
+                      "x":bottomPaddlePosition
                     }
                   }
                 };
@@ -176,37 +175,25 @@ function GamePlay() {
           console.log("Unknown state");
       }
     }
-  });
-
-  const computeScaledPaddlePosition = (paddlePositionX) => {
-      const max = (gameboardWidth - paddleWidth) / 2;
-      const min = -max;
-      const xfactor = ((paddlePositionX - 0.5) * (gameboardWidth - paddleWidth));
-      return Math.round(Math.max(min, Math.min(max, xfactor)) * 100) / 100;
-  }
-
-  const onPaddleTopPosition = (message) => {
-    const paddlePosition = message.position.x;
-    setTopPaddlePosition(paddlePosition);
 
     if (topPaddleRef.current) {
-      const newPositionX = computeScaledPaddlePosition(topPaddlePosition);
+      const xfactor = ((topPaddlePosition - 0.5) * (gameboardWidth - paddleWidth));
+
+      const newPositionX = Math.round(Math.max(min, Math.min(max, xfactor)) * 100) / 100;
       const currentPosition = topPaddleRef.current.translation();
       topPaddleRef.current.setTranslation({ x: newPositionX, y: currentPosition.y, z: currentPosition.z }, true);
     }
-  };
-
-  const onPaddleBottomPosition = (message) => {
-    const paddlePosition = message.position.x;
-    setBottomPaddlePosition(paddlePosition);
 
     if (bottomPaddleRef.current) {
-      const newPositionX = computeScaledPaddlePosition(bottomPaddlePosition);
+      const xfactor = ((bottomPaddlePosition - 0.5) * (gameboardWidth - paddleWidth));
+
+      const newPositionX = Math.round(Math.max(min, Math.min(max, xfactor)) * 100) / 100;
       const currentPosition = bottomPaddleRef.current.translation();
       bottomPaddleRef.current.setTranslation({ x: newPositionX, y: currentPosition.y, z: currentPosition.z }, true);
-    }
-  };
+    }   
 
+  });
+ 
   const onPaddleTopStateTransition = (message) => {
     const paddleStateTransition = message.transition;
    
@@ -221,7 +208,17 @@ function GamePlay() {
     if (paddleStateTransition == "reset") {
       setIsBottomPaddleReset(true);
     }     
-  }
+  } 
+
+  const onPaddleTopPosition = (message) => {
+    const paddlePosition = message.position.x;
+    setTopPaddlePosition(paddlePosition);   
+  };
+
+  const onPaddleBottomPosition = (message) => {
+      const paddlePosition = message.position.x;
+      setBottomPaddlePosition(paddlePosition);        
+  };
 
   // Function to handle collision events using useCallback
   const handleCollision = useCallback((event) => {
