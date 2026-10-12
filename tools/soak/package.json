@@ -1,0 +1,13 @@
+{
+  "name": "pong-soak",
+  "private": true,
+  "description": "End-to-end soak test and AI evaluation bot for the Pong exhibit (talks MQTT, drives browsers with Playwright)",
+  "type": "module",
+  "scripts": {
+    "soak": "node soak.mjs"
+  },
+  "dependencies": {
+    "mqtt": "^5.10.1",
+    "playwright": "^1.48.0"
+  }
+}
