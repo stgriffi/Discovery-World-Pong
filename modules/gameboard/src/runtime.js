@@ -3,7 +3,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { PongAPI } from 'dw-state-machine';
 import { createGameController } from './game/GameController';
-import { createLegacyAudio } from './audio/legacyAudio';
+import { createAudioEngine } from 'dw-audio';
+import { CLIPS } from './audio/clips';
+import { createGameAudio } from './audio/gameAudio';
 import { installErrorReporter } from './errorReporter';
 
 const broker = process.env.REACT_APP_MQTT_BROKER || window.location.hostname;
@@ -24,7 +26,13 @@ function configFromUrl(search) {
 
 export const api = PongAPI(clientId, `ws://${broker}:${port}`);
 export const errorReporter = installErrorReporter({ api, app: 'gameboard' });
-export const audio = createLegacyAudio();
+export const audioEngine = createAudioEngine({ clips: CLIPS });
+export const audio = createGameAudio(audioEngine);
+audioEngine.load().then((count) => {
+  const message = `audio: ${count}/${Object.keys(CLIPS).length} clips decoded, context ${audioEngine.state}`;
+  console.log(message);
+  errorReporter.report(audioEngine.state === 'running' ? 'info' : 'warn', message);
+});
 export const controller = createGameController({
   api,
   audio,

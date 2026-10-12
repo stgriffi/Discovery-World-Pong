@@ -1,0 +1,6 @@
+{
+  "name": "dw-audio",
+  "version": "1.0.0",
+  "description": "Low-latency Web Audio playback shared by the exhibit's browser apps.",
+  "main": "index.js"
+}

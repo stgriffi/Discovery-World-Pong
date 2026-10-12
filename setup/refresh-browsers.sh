@@ -2,12 +2,13 @@
 set -x
 
 export DISPLAY=:0
-windows=("Clocktower Visualizer" "Gameboard" "Human Visualizer" "Neural Network Visualizer")
+# Page titles of the kiosk windows (TYLER, the old clock tower, is titled "Tyler").
+windows=("Tyler" "Gameboard" "Human Visualizer" "Neural Network Visualizer")
 
 for w in "${windows[@]}"
 do
   # Get window id from window name
-  windowid=$(xdotool search --name "$w")
+  windowid=$(xdotool search --name "$w" | head -1)
   # Check return code, make sure the window is open
   rc=$?
   if [ $rc -eq 0 ]; then
