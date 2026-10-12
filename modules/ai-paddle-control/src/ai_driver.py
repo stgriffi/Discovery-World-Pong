@@ -1,3 +1,4 @@
+import threading
 import sys
 import time
 import logging
@@ -177,8 +178,9 @@ def main():
     # instance = AIDriver(config = config, in_q = in_q)
     instance = AIDriver(config = config)
     try:
-        while True:
-            pass
+        # Block without spinning: a busy loop burned a CPU core and competed for the GIL
+        # with the MQTT thread, which is where inference runs.
+        threading.Event().wait()
     except KeyboardInterrupt:
         print("Closing")
 

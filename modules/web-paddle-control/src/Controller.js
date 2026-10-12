@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {PongAPI} from 'dw-state-machine';
+import { api, PADDLE_ID } from './api';
 
 const INTERVAL = process.env.REACT_APP_INTERVAL || 70;
 const INCREMENT = parseFloat(process.env.REACT_APP_INCREMENT) || 0.05;
 const MAX = process.env.REACT_APP_MAX || 1.0;
 const MIN = process.env.REACT_APP_MIN || 0.0;
-const PADDLEID = process.env.REACT_APP_PADDLE_ID || 'bottom';
+const PADDLEID = PADDLE_ID;
 
 let paddlePositionTopic = PongAPI.Topics.PADDLE_BOTTOM_POSITION;
 let paddleStateTopic = PongAPI.Topics.PADDLE_BOTTOM_STATE;
@@ -27,7 +28,7 @@ console.log(`max: ${MAX}`);
 console.log(`min: ${MIN}`);
 console.log(`******************************`); 
 
-const Controller = ({pongAPIRef}) => {
+const Controller = () => {
   const [position, setPosition] = useState(0.5);
   const [isReset, setIsReset] = useState(false);
 
@@ -35,11 +36,13 @@ const Controller = ({pongAPIRef}) => {
   const rIntervalId = useRef(null);
 
   useEffect(() => {
-    if (pongAPIRef.current) {
-        pongAPIRef.current.registerObserver(paddleStateTransitionTopic, onPaddleStateTransition);
-        pongAPIRef.current.update(paddleStateTopic, { state: "ready" });
-    }
-  
+    const unsubscribe = api.registerObserver(paddleStateTransitionTopic, onPaddleStateTransition);
+    // Announce this paddle once connected (publishing before the connection is dropped).
+    const stopListening = api.onConnectionChange((connected, { first }) => {
+      if (connected && first) api.update(paddleStateTopic, { state: "ready" });
+    });
+    if (api.isConnected()) api.update(paddleStateTopic, { state: "ready" });
+
     // disable the pinch zoom on mobile
     const disablePinchZoom = (e) => {
       if (e.touches.length > 1) {
@@ -51,37 +54,36 @@ const Controller = ({pongAPIRef}) => {
 
     return () => {
       document.removeEventListener('touchmove', disablePinchZoom);
-      pongAPIRef.current.update(paddleStateTopic, { state: "not_ready" });
+      unsubscribe();
+      stopListening();
+      api.update(paddleStateTopic, { state: "not_ready" });
     };
-  }, [pongAPIRef]);
+  }, []);
 
   useEffect(() => {
-    if (pongAPIRef.current) {
-      console.log(`position: ${position}`);
-      pongAPIRef.current.update(paddlePositionTopic, { position: { x: parseFloat(position.toFixed(2)) } });  
-    }
+    api.update(paddlePositionTopic, { position: { x: parseFloat(position.toFixed(2)) } });
   }, [position]);  
   
   useEffect(() => {
-    if (pongAPIRef.current && isReset) {
+    if (isReset) {
       console.log(`isReset: ${isReset}`);
       setIsReset(false);
       console.log(`position: ${position}`);
-      pongAPIRef.current.update(paddlePositionTopic, { position: { x: parseFloat(position.toFixed(2)) } });  
-      pongAPIRef.current.update(paddleStateTopic, { state: "reset" });
+      api.update(paddlePositionTopic, { position: { x: parseFloat(position.toFixed(2)) } });  
+      api.update(paddleStateTopic, { state: "reset" });
     }
   }, [isReset, position]);
 
   const onPaddleStateTransition = (message) => {
       const paddleStateTransition = message.transition;
-      if (paddleStateTransition == 'reset') {
+      if (paddleStateTransition === 'reset') {
         console.log('Paddle Message:', message);
 
         setPosition(0.5);
         setIsReset(true);
 
-        // pongAPIRef.current.update(paddleStateTopic, { state: "reset" });
-        // pongAPIRef.current.update(paddleStateTopic, { state: "start" });
+        // api.update(paddleStateTopic, { state: "reset" });
+        // api.update(paddleStateTopic, { state: "start" });
       }
   }
 
@@ -101,9 +103,9 @@ const Controller = ({pongAPIRef}) => {
   },[]);
 
   const handleMouseDown =  useCallback((direction) => {
-    // console.log('handleMouseDown: ', direction);
-    // clearInterval(lIntervalId.current);
-    // clearInterval(rIntervalId.current);
+    // A second press without a release (touch + mouse) must not leave a timer running.
+    clearInterval(lIntervalId.current);
+    clearInterval(rIntervalId.current);
     if (direction === 'L') {
       move(direction);
       lIntervalId.current = setInterval(() => move('L'), INTERVAL);
@@ -147,18 +149,18 @@ const Controller = ({pongAPIRef}) => {
   const startButton = useCallback(() => {
     // console.log("Start button clicked");
     // Add code to handle the start button click here
-    pongAPIRef.current.update(paddleStateTopic, { state: "start" });
+    api.update(paddleStateTopic, { state: "start" });
   }, []);
 
   const stopButton = useCallback(() => {
     // console.log("Stop button clicked");
-    pongAPIRef.current.update(paddleStateTopic, { state: "stop" });
+    api.update(paddleStateTopic, { state: "stop" });
   }, []);
 
 
   const readyButton = useCallback(() => {
     // console.log("Ready button clicked");
-    pongAPIRef.current.update(paddleStateTopic, { state: "ready" });
+    api.update(paddleStateTopic, { state: "ready" });
   }, []);
 
   return (

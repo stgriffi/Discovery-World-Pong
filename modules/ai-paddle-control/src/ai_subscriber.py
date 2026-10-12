@@ -367,7 +367,8 @@ class AISubscriber:
         """
         :param trigger_event: Function to call each time a new state is received
         """
-        self.pong_api = PongAPI("ai-paddle-control")
+        # If this service dies, the broker tells the gameboard TYLER is gone.
+        self.pong_api = PongAPI("ai-paddle-control", will=(Topics.PADDLE_TOP_STATE, {"state": "stop"}))
 
         self.config = config
         self.trigger_event = trigger_event
