@@ -1,28 +1,19 @@
-import { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 
-function HudImage({image, position = [0, 0, 0], scale = 1.0}) {
+function HudImage({ image, position = [0, 0, 0], scale = 1.0 }) {
   const texture = useLoader(THREE.TextureLoader, image);
-  const [aspectRatio, setAspectRatio] = useState(1);  
-
-  useEffect(() => {
-    setAspectRatio(texture.image.width / texture.image.height);
+  const aspect = useMemo(() => {
+    const { width, height } = texture.image || {};
+    return width && height ? width / height : 1;
   }, [texture]);
 
   return (
     <mesh position={position}>
-      <planeGeometry 
-        attach="geometry" 
-        args={[aspectRatio * scale, scale]} 
-      />
-      <meshBasicMaterial 
-        attach="material" 
-        map={texture} 
-        transparent 
-        opacity={1.0} 
-      />
-    </mesh>         
+      <planeGeometry args={[aspect * scale, scale]} />
+      <meshBasicMaterial map={texture} transparent />
+    </mesh>
   );
 }
 
