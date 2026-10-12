@@ -10,6 +10,7 @@
 //   node soak.mjs --games 20 --round 5 --exit-rate 0.3
 //   node soak.mjs --minutes 60 --no-top-bot     # when ai-paddle-control plays TYLER
 //   node soak.mjs --no-browser                  # pages already open (e.g. the kiosk)
+//   node soak.mjs --no-top-bot --human-skill perfect --exit-rate 0 --minutes 20   # evaluate TYLER's AI
 import mqtt from 'mqtt';
 
 const args = parseArgs(process.argv.slice(2));
@@ -24,6 +25,8 @@ const TOP_BOT = !args['no-top-bot'];
 const BROWSER = !args['no-browser'];
 const HEADED = !!args.headed;
 const SEED = args.seed ? Number(args.seed) : Date.now() % 100000;
+// 'normal' sometimes gives up on a ball; 'perfect' never does (to measure TYLER over long rallies).
+const HUMAN_SKILL = args['human-skill'] || 'normal';
 
 // Independent copy of the exhibit state machine (modules/shared/.../BaseGameStateMachine.js).
 const NEXT = {
@@ -85,7 +88,14 @@ const stats = {
   humanReturns: 0,
   goalsHuman: 0,
   goalsTyler: 0,
+  // Per level: TYLER's returns and misses, with serves (always straight at a centered
+  // TYLER, so trivially returned) counted separately.
+  levels: {},
 };
+const levelStats = (n) =>
+  (stats.levels[n] = stats.levels[n] || { serveReturns: 0, serveMisses: 0, returns: 0, misses: 0, longestRally: 0 });
+let rallyHits = 0;
+let currentLevel = 0;
 
 // ------------------------------------------------------------------- browsers
 
@@ -145,6 +155,9 @@ function setState(next, transition) {
   const prev = state;
   state = next;
   stateSince = Date.now();
+  const levelMatch = /^level([123])(Intro)?$/.exec(next);
+  currentLevel = levelMatch ? Number(levelMatch[1]) : 0;
+  rallyHits = 0;
   if (/^level[123]$/.test(next)) {
     playCount = 0;
     playWindowStart = Date.now();
@@ -223,11 +236,27 @@ function onGamePlay(message) {
   const { x, y } = message.ball.position;
   if (lastBall) {
     const vy = y - lastBall.y;
+    const level = currentLevel ? levelStats(currentLevel) : null;
     // Direction flips near a paddle are returns (world y: +69.5 TYLER, -69.5 human).
-    if (ball.vy > 0 && vy < 0 && y > 40) stats.tylerReturns += 1;
-    if (ball.vy < 0 && vy > 0 && y < -40) stats.humanReturns += 1;
-    if (lastBall.y > 70 && y === -53 && lastBall.y !== -53) stats.goalsHuman += 1;
-    if (lastBall.y < -70 && y === -53 && lastBall.y !== -53) stats.goalsTyler += 1;
+    if (ball.vy > 0 && vy < 0 && y > 40) {
+      stats.tylerReturns += 1;
+      if (level) (rallyHits === 0 ? level.serveReturns++ : level.returns++);
+      rallyHits += 1;
+    }
+    if (ball.vy < 0 && vy > 0 && y < -40) {
+      stats.humanReturns += 1;
+      rallyHits += 1;
+    }
+    const parked = y === -53 && lastBall.y !== -53;
+    if (lastBall.y > 70 && parked) {
+      stats.goalsHuman += 1;
+      if (level) (rallyHits === 0 ? level.serveMisses++ : level.misses++);
+    }
+    if (lastBall.y < -70 && parked) stats.goalsTyler += 1;
+    if (parked) {
+      if (level) level.longestRally = Math.max(level.longestRally, rallyHits);
+      rallyHits = 0;
+    }
     ball = { x, y, vy };
   }
   lastBall = { x, y };
@@ -241,7 +270,7 @@ let humanAim = 0;
 let humanGivesUp = false;
 setInterval(() => {
   if (!humanPresent || !/^level[123]/.test(state)) return;
-  if (ball.vy < 0 && ball.y < 0 && random() < 0.002) humanGivesUp = true;
+  if (HUMAN_SKILL !== 'perfect' && ball.vy < 0 && ball.y < 0 && random() < 0.002) humanGivesUp = true;
   if (ball.vy > 0) humanGivesUp = false;
   const target = humanGivesUp ? (ball.x > 0 ? -90 : 90) : ball.x + humanAim;
   if (random() < 0.05) humanAim = (random() - 0.5) * 16; // hit with different parts of the paddle
@@ -298,6 +327,13 @@ async function finish() {
   Object.entries(stats.durations).forEach(([s, list]) => console.log(`  ${s.padEnd(12)} ${summarize(list)} s`));
   console.log(`game/play rate per level: ${summarize(stats.playRates)} msg/s`);
   console.log(`returns: TYLER ${stats.tylerReturns}, human ${stats.humanReturns}; goals: human ${stats.goalsHuman}, TYLER ${stats.goalsTyler}`);
+  Object.entries(stats.levels).forEach(([n, l]) => {
+    const rate = l.returns + l.misses ? ((100 * l.returns) / (l.returns + l.misses)).toFixed(1) : 'n/a';
+    console.log(
+      `TYLER level ${n}: returned ${l.returns}/${l.returns + l.misses} rally shots (${rate}%), ` +
+        `serves ${l.serveReturns}/${l.serveReturns + l.serveMisses}, longest rally ${l.longestRally} hits`,
+    );
+  });
   console.log(`ignored duplicate/late transitions: ${JSON.stringify(stats.ignored)}`);
   stats.playRates.forEach((rate) => {
     if (rate < 55 || rate > 65) fail(`game/play ran at ${rate.toFixed(1)} msg/s during a level (expected ~60)`);
