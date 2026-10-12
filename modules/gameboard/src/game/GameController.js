@@ -159,6 +159,15 @@ export function createGameController({
     frame += 1;
   }
 
+  // Scores for TYLER's faces (and anything else that wants them).
+  function publishStats() {
+    api.update(Topics.GAME_STATS, {
+      player_top: { score: topScore },
+      player_bottom: { score: bottomScore },
+      level,
+    });
+  }
+
   // Tell the paddles a point/level is starting over. Fire-and-forget: nothing waits for
   // an answer (no paddle service ever sent one; the old handshake only saw its own echo).
   function publishPaddleResets() {
@@ -224,6 +233,7 @@ export function createGameController({
     if (scorer === 'human') bottomScore += 1;
     else topScore += 1;
     ui.setState({ topScore, bottomScore });
+    publishStats();
     topTarget = sim.top.x; // the sim recentered TYLER's paddle
     if (level === 3 && scorer === 'tyler') enterGameplay('gameOver');
     else enterGameplay('pointPause');
@@ -307,6 +317,7 @@ export function createGameController({
       bottomScore: 0,
       timerText: TEXT.BLANK,
     });
+    publishStats();
     idleEnteredAt = now();
     cooldownMs = booting ? cfg.bootCooldownMs : cfg.postGameCooldownMs;
     readyIgnoreMs = cfg.readyIgnoreMs;
@@ -325,6 +336,7 @@ export function createGameController({
       centerText: TEXT.GET_READY,
       timerText: n < 3 ? formatClock(clockTicks) : TEXT.SUDDEN_DEATH,
     });
+    publishStats();
     enterGameplay('levelIntro');
   }
 

@@ -152,6 +152,17 @@ describe('a full game', () => {
     plays.slice(1).forEach((message, i) => expect(message.frame).toBe(plays[i].frame + 1));
   });
 
+  test('publishes game/stats at each level start and on every goal', () => {
+    setup();
+    humanPosition(0.03); // TYLER will score
+    playToLevel1();
+    advance(2000 + 17 * 17 + 2500);
+    const stats = broker.published('game/stats', 'gameboard');
+    expect(stats[stats.length - 1]).toMatchObject({ level: 1, player_top: { score: expect.any(Number) } });
+    expect(stats.some((m) => m.player_top.score >= 1)).toBe(true);
+    expect(stats.some((m) => m.level === 1 && m.player_top.score === 0 && m.player_bottom.score === 0)).toBe(true);
+  });
+
   test('nothing is published on game/play while idle or during intros', () => {
     setup();
     startGame();
