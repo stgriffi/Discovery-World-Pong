@@ -51,7 +51,7 @@ function GamePlayHud() {
             color="white" 
             text={'LEVEL:'}
           />
-        ` <Text // FIX ME? Is the backtick on the beginning of this line supposed to be there?
+          <Text
             position={[1.6, 0.0, 0.0]} 
             font={mainFont} 
             fontSize={0.8} 

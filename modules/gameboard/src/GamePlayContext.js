@@ -6,7 +6,7 @@ const GamePlayContext = createContext();
 const useGamePlayContext = () => useContext(GamePlayContext);
 
 const GamePlayProvider = ({ children }) => {
-  const [audioPlayer] = useState(new AudioPlayer());
+  const [audioPlayer] = useState(() => new AudioPlayer());
   const [volume] = useState(0.5);
   const [speed] = useState(200);
   const [playTime] = useState(10000);
