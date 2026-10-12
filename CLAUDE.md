@@ -45,11 +45,10 @@ docker exec mqtt-broker mosquitto_sub -v -t '#'                              # w
 ./setup/open_windows.sh / ./setup/close_windows.sh                           # kiosk windows (monitor-layout specific)
 ```
 
-Local JS development (Node 20 via nvm: `export PATH=$HOME/.nvm/versions/node/v20.20.2/bin:$PATH`):
+Local JS development (Node 22 LTS via nvm, see `.nvmrc`; in non-interactive shells run `. ~/.nvm/nvm.sh` first):
 
 ```bash
-(cd modules/shared/js_packages/dw/state-machine && npm install)   # once: lets the file: dependency resolve its deps
-cd modules/gameboard && npm install
+cd modules/gameboard && npm ci                                    # the shared file: package's deps are hoisted here
 REACT_APP_MQTT_BROKER=localhost npm start                         # needs the mqtt-broker container running
 npm test -- --watchAll=false                                      # CRA Jest, all tests
 npx react-scripts test --watchAll=false src/game/pongSim.test.js  # one file; add -t "name" for one test
@@ -105,7 +104,10 @@ at TYLER).
 - **Audio**: kiosk Firefox profiles need `media.autoplay.default=0`; otherwise TYLER's clips never play and the game
   never leaves the intro.
 - **Builds**: `.env` files are baked into the CRA images (`REACT_APP_MQTT_PORT=9001`; the broker host defaults to the
-  page's hostname).
+  page's hostname). Dockerfiles copy `modules/shared` to `/src/shared` next to `/src/<app>` so `file:../shared/...`
+  resolves like local dev, then `npm ci` from the committed lockfile. react-scripts 5 needs TypeScript ^4: keep
+  `typescript@^4.9.5` pinned, because npm otherwise resolves TypeScript 7, which breaks CRA's ESLint.
+  Use `TAG=local` with compose builds so locally built images never mix with old pulled `:next` images.
 
 ## Exhibit twin
 
