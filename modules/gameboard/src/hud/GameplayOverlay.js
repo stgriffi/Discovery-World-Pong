@@ -20,6 +20,19 @@ function LiveText({ select, ...props }) {
   return <HudText {...props}>{String(value)}</HudText>;
 }
 
+// Time left in levels 1-2 ("0:30" ... "0:00", red for the last 5 s) or "SUDDEN DEATH" in
+// level 3. The controller updates the text once per second; nothing renders per frame.
+function RoundTimer() {
+  const text = useUi((s) => s.timerText);
+  const seconds = /^\d+:\d\d$/.test(text) ? Number(text.split(':')[0]) * 60 + Number(text.split(':')[1]) : null;
+  const urgent = seconds !== null && seconds <= 5;
+  return (
+    <HudText position={[0.0, 4.0, 0.0]} fontSize={seconds === null ? 0.8 : 1.1} color={urgent ? '#ff4d4d' : 'white'}>
+      {text}
+    </HudText>
+  );
+}
+
 function GameplayOverlay() {
   return (
     <group>
@@ -35,6 +48,8 @@ function GameplayOverlay() {
         </HudText>
         <LiveText select={(s) => s.level} position={[1.6, 0.0, 0.0]} fontSize={0.8} color="white" />
       </group>
+
+      <RoundTimer />
 
       <LiveText select={(s) => s.centerText} position={[0.0, 1.0, 0.0]} fontSize={1.7} color="white" />
     </group>
