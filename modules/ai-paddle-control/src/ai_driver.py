@@ -31,40 +31,9 @@ class AIDriver:
     MODEL_3 = "./validation/smoothreward_s6_f5_d3_22850.h5"
     level = 1
     def publish_inference(self):
-        #Timer.start('inf')
-        # Check if the level has changed. If so, we need to load a new model
-        if (AIDriver.level != self.state.game_level):
-            # # check if a kill/quit message has been sent via the queue
-            # if not self.q.empty():
-            #     dataQ = self.q.get()
-            #     if dataQ == "endThreads":
-            #         print('ai thread quitting')
-            #         while not self.q.empty: # empty the rest of the q
-            #             dataQ = self.q.get()
-            #         self.q.put('noneActive') 
-            #         # a message that goes back to the main program to tell it that the ai_driver has stopped
-            #         sys.exit()
-            #         print('the sys exit didnt work')
+        # One model per level, harder each level.
+        self.agent = {1: self.agent1, 2: self.agent2, 3: self.agent3}.get(self.state.game_level, self.agent1)
 
-            temp = AIDriver.level
-            AIDriver.level = self.state.game_level
-            # print(f'level changed to {AIDriver.level}')
-            if self.state.game_level == 0:
-                self.agent = self.agent1
-                #self.agent1.load(AIDriver.MODEL_1)
-            elif self.state.game_level == 1 and temp != 0:
-                self.agent = self.agent1
-                #self.agent1.load(AIDriver.MODEL_1)
-            elif self.state.game_level == 2:
-                self.agent = self.agent2
-                #self.agent1.load(AIDriver.MODEL_2)
-            elif self.state.game_level == 3:
-                self.agent = self.agent3
-                #self.agent1.load(AIDriver.MODEL_3)
-            else:
-                self.agent = self.agent1
-                #self.agent1.load(AIDriver.MODEL_2)
-   
         # Get latest state diff
         diff_state = self.state.render_latest_diff()   
         
@@ -91,41 +60,19 @@ class AIDriver:
         x = diff_state.ravel()     
 
         action, _, probs = self.agent.act(x, greedy=True)
-        logging.info('****************************************** step: %s action: %s', self.state.step, action)        
+        logging.debug('step: %s level: %s action: %s', self.state.step, self.state.game_level, action)
 
-        # Publish prediction
-        # if self.paddle1:
-        #     self.state.publish("paddle1/action", {"action": str(action)})
-        #     self.state.publish("paddle1/frame", {"frame": current_frame_id})
-        # elif self.paddle2:
-        #     self.state.publish("paddle2/action", {"action": str(action)})
-        #     self.state.publish("paddle2/frame", {"frame": current_frame_id})
-
-        # model_activation = self.agent.get_activation_packet()
-        # self.state.publish("ai/activation", model_activation)      
-
-        paddle_adjustment_x = 192
+        # Training held each action for AI_FRAME_INTERVAL ticks at 6 px/tick. The gameboard
+        # moves TYLER's paddle toward this target at that same speed.
+        step = 6 * self.config.AI_FRAME_INTERVAL
+        target = self.state.top_paddle_x
+        if action == 0:
+            target -= step
+        elif action == 1:
+            target += step
+        target = min(self.config.WIDTH, max(0.0, target))
         if self.paddle1:
-            # data = {"position": {"x": 0.0}}
-            new_paddle_x = self.state.top_paddle_x
-
-            if action == 0:
-                new_paddle_x -= self.config.PADDLE_WIDTH
-            else:
-                if action == 1:
-                    new_paddle_x += self.config.PADDLE_WIDTH
-
-            # if action == 1:
-            #     new_paddle_x -= 1
-            # else:
-            #     if action == 0:
-            #         new_paddle_x += 1 
-
-            data = {"position": {"x": new_paddle_x / paddle_adjustment_x}}    
-            self.state.publish(Topics.PADDLE_TOP_POSITION, data)      
-        elif self.paddle2:
-            data = {"position": {"x": new_paddle_x / paddle_adjustment_x}}    
-            self.state.publish(Topics.PADDLE_BOTTOM_POSITION, data)    
+            self.state.publish(Topics.PADDLE_TOP_POSITION, {"position": {"x": target / self.config.WIDTH}})
 
         #if len(self.frame_diffs) > 10:
         #    print(
@@ -159,6 +106,10 @@ class AIDriver:
         self.agent2.load(AIDriver.MODEL_2)
         self.agent3 = PGAgent(self.config.CUSTOM_STATE_SIZE, self.config.CUSTOM_ACTION_SIZE)
         self.agent3.load(AIDriver.MODEL_3)
+        # The first inference on each model is slow; get it out of the way before games start.
+        for agent in (self.agent1, self.agent2, self.agent3):
+            agent.act(np.zeros(self.config.CUSTOM_STATE_SIZE), greedy=True)
+        self.agent = self.agent1
         self.state = AISubscriber(self.config, trigger_event=lambda: self.publish_inference())
         self.last_frame_id = self.state.frame
         self.last_tick = time.time()

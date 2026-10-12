@@ -13,6 +13,11 @@ from dw import Config
 import cv2
 import math
 
+# game/state transitions that start a level, and the level (model) they start.
+LEVEL_STARTS = {"player_ready": 1, "level1_intro_complete": 1, "level1_complete": 2, "level2_complete": 3}
+GAME_OVER = {"game_complete", "player_exit", "reset", "start", "stop"}
+
+
 class AISubscriber:
     """
     MQTT compliant game state subscriber.
@@ -48,36 +53,24 @@ class AISubscriber:
     #         self.trailing_frame = self.latest_frame
     #         self.latest_frame = self.render_latest_preprocessed()
 
-    def on_paddle_state_transition(self, message):
-        """
-        Callback method for when the BaseState changes.
-
-        Parameters:
-        changed_state (dict): The changed state values.
-        """
-
-        paddle_adjustment_top = 192
-        self.top_paddle_x = paddle_adjustment_top / 2
-
-        state_transition = message["state_transition"]
-        if state_transition == "reset":
-            data = {"position": {"x": self.top_paddle_x / paddle_adjustment_top}}    
-            self.state.publish(Topics.PADDLE_TOP_POSITION, data, retain=True)    
-            data = {"state": "reset"}    
-            self.publish(Topics.PADDLE_TOP_STATE, data, retain=True)   
-
     def on_game_state(self, message):
         """
-        Callback method for when the BaseState changes.
-
-        Parameters:
-        changed_state (dict): The changed state values.
+        Follow the exhibit's game flow: pick the model for each level, start every level
+        with a blank previous frame (as training started each game), and re-announce
+        readiness when a game ends.
         """
-
-        transition = message["transition"]
+        transition = message.get("transition")
+        if transition in LEVEL_STARTS:
+            self.game_level = LEVEL_STARTS[transition]
+            self.latest_frame = None
+            self.trailing_frame = None
+        elif transition in GAME_OVER:
+            self.game_level = 1
+            self.latest_frame = None
+            self.trailing_frame = None
         if transition == "game_complete":
-            data = {"state": "start"}    
-            self.publish(Topics.PADDLE_TOP_STATE, data, retain=True)   
+            data = {"state": "start"}
+            self.publish(Topics.PADDLE_TOP_STATE, data, retain=True)
 
     # def state(self, message):
     #     on_game_state(self, message)
@@ -99,7 +92,6 @@ class AISubscriber:
         self.puck_y = ball_adjustment_y - message["ball"]["position"]["y"]
         self.bottom_paddle_x = message["paddle_bottom"]["position"]["x"] * paddle_adjustment_bottom
         self.top_paddle_x = message["paddle_top"]["position"]["x"] * paddle_adjustment_top
-        self.game_level = 3
 
         # print(f"self.puck_x: ", self.puck_x )
         # print(f"self.puck_y: ", self.puck_y )
@@ -126,7 +118,14 @@ class AISubscriber:
         # else:
         #     self.frame += 1  
 
-        if self.frame == self.config.AI_FRAME_INTERVAL:
+        # Decide every AI_FRAME_INTERVAL ticks, as in training. The gameboard numbers its
+        # game/play messages per physics tick; fall back to counting messages without it.
+        frame = message.get("frame")
+        if frame is not None:
+            decide = frame % self.config.AI_FRAME_INTERVAL == 0
+        else:
+            decide = self.frame == self.config.AI_FRAME_INTERVAL
+        if decide:
             self.trailing_frame = self.latest_frame
             self.latest_frame = self.render_latest_preprocessed()
             # if self.trailing_frame is not None:
@@ -251,13 +250,13 @@ class AISubscriber:
         """
         screen = np.zeros((self.config.HEIGHT, self.config.WIDTH, 3), dtype=np.float32)
         screen[:, :] = (140, 60, 0)  # BGR for a deep blue
+        # The training render drew a 2 px midline first (Pong.render).
+        self.draw_rect(screen, 0, self.config.HEIGHT / 2 - 1, self.config.WIDTH, 2, 255)
         if bottom:
             self.draw_rect(screen, self.bottom_paddle_x - self.config.PADDLE_WIDTH / 2, self.config.BOTTOM_PADDLE_Y - (self.config.PADDLE_HEIGHT / 2),
                   self.config.PADDLE_WIDTH, self.config.PADDLE_HEIGHT, 255)
         else:
-    #        self.draw_rect(screen, self.top_paddle_x - self.config.PADDLE_WIDTH / 2, self.config.TOP_PADDLE_Y - (self.config.PADDLE_HEIGHT / 2),
-    #                 self.config.PADDLE_WIDTH, self.config.PADDLE_HEIGHT, 255)
-            self.draw_rect(screen, self.top_paddle_x - self.config.PADDLE_WIDTH / 2, (self.config.PADDLE_HEIGHT / 2),
+            self.draw_rect(screen, self.top_paddle_x - self.config.PADDLE_WIDTH / 2, self.config.TOP_PADDLE_Y - (self.config.PADDLE_HEIGHT / 2),
                      self.config.PADDLE_WIDTH, self.config.PADDLE_HEIGHT, 255)
         self.draw_rect(screen, self.puck_x - self.config.BALL_DIAMETER / 2, self.puck_y - (self.config.BALL_DIAMETER / 2),
                   self.config.BALL_DIAMETER, self.config.BALL_DIAMETER, 255)
@@ -384,7 +383,7 @@ class AISubscriber:
         self.puck_y = None
         self.bottom_paddle_x = None
         self.top_paddle_x = None
-        self.game_level = None
+        self.game_level = 1
         # self.frame = 0
         self.latest_frame = None
         self.trailing_frame = None

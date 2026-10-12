@@ -36,6 +36,10 @@ services:
                 certs: ./certs
         profiles: [prod, top-player-ai-gpu]
         restart: unless-stopped
+        environment:
+            # Allocate GPU memory as needed instead of grabbing nearly all of it, which
+            # leaves the kiosk Firefox (WebGL on the same GPU) starved.
+            - TF_FORCE_GPU_ALLOW_GROWTH=true
         networks:
             - pong-network
         deploy:
@@ -58,6 +62,8 @@ services:
                 GPU: ""
         profiles: [top-player-ai-cpu]
         restart: unless-stopped
+        environment:
+            - TF_FORCE_GPU_ALLOW_GROWTH=true
         networks:
             - pong-network
     human-paddle-control:
