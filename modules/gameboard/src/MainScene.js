@@ -1,7 +1,6 @@
 import React, {Suspense, useEffect, useContext} from 'react'
 import { Canvas, useThree } from "@react-three/fiber";
 import { Physics } from '@react-three/rapier';
-import {GizmoHelper, GizmoViewcube, GizmoViewport, GridHelper} from "@react-three/drei"; // can be commented in for debugging
 // import GamePlay from './GamePlay';
 // import GamePlayHud from './GamePlayHud';
 // import GameInstructionsHud from './GameInstructionHud';

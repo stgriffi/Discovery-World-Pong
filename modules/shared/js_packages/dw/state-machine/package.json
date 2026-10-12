@@ -4,12 +4,13 @@
     "description": "A npm package containing the dw base files for the javascript moduels, components including BaseState, MQTTClient, and BaseStateMachine.",
     "main": "index.js",
     "scripts": {
-      "test": "node test/test.js"
+        "test": "node test/test.js"
     },
     "dependencies": {
-      "mqtt": "^5.10.1",
-      "javascript-state-machine": "^3.1.0",
-      "ajv": "^8.17.1",
-      "winston": "^3.14.2"
+        "mqtt": "^5.10.1",
+        "javascript-state-machine": "^3.1.0",
+        "ajv": "^8.17.1",
+        "winston": "^3.14.2",
+        "uuid": "^11.0.3"
     }
-  }
+}
