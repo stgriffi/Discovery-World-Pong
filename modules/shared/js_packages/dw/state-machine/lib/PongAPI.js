@@ -2,94 +2,151 @@ import mqtt from 'mqtt';
 import Ajv from 'ajv';
 import pongAPISchema from './PongAPISchema.json';
 import { v4 as uuidv4 } from 'uuid';
+import Topics from './topics.js';
+
+// One compiled validator per topic. Topics missing from the schema (e.g. app/logs/...)
+// are passed through unvalidated.
+const ajv = new Ajv({ allErrors: true });
+const validators = new Map();
+function validatorFor(topic) {
+  if (!validators.has(topic)) {
+    const schema = pongAPISchema.properties && pongAPISchema.properties[topic];
+    validators.set(topic, schema ? ajv.compile(schema) : null);
+  }
+  return validators.get(topic);
+}
+
+export function validateMessage(topic, message) {
+  const validate = validatorFor(topic);
+  if (!validate) return true;
+  const valid = validate(message);
+  if (!valid) {
+    console.error(`PongAPI: invalid message on ${topic}:`, validate.errors, message);
+  }
+  return valid;
+}
 
 const PongAPI = (clientId, brokerUrl, connectCallback, disconnectCallback) => {
   const instanceId = uuidv4();
   let client = null;
   let connected = false;
-  const observers = {};
-  const ajv = new Ajv();
-  const validate = ajv.compile(pongAPISchema);
+  let everConnected = false;
+  const observers = new Map(); // topic -> Set of callbacks
+  const connectionListeners = new Set();
 
   const getInstanceId = () => instanceId;
 
+  const notifyConnection = (isUp, first) => {
+    connectionListeners.forEach((listener) => {
+      try {
+        listener(isUp, { first });
+      } catch (err) {
+        console.error('PongAPI: connection listener threw', err);
+      }
+    });
+  };
+
+  const markDisconnected = () => {
+    if (!connected) return;
+    connected = false;
+    console.log('Disconnected from MQTT broker');
+    notifyConnection(false, false);
+    if (typeof disconnectCallback === 'function') disconnectCallback();
+  };
+
+  const notifyObservers = (topic, message, meta) => {
+    const callbacks = observers.get(topic);
+    if (!callbacks) return;
+    // Copy first so a callback can unregister observers without skipping others.
+    [...callbacks].forEach((callback) => {
+      try {
+        callback(message, meta);
+      } catch (err) {
+        console.error(`PongAPI: observer for ${topic} threw`, err);
+      }
+    });
+  };
+
   const start = () => {
-    client = mqtt.connect(brokerUrl, { clientId });
+    if (client) return;
+    // queueQoSZero: false -- don't replay stale game messages after a reconnect.
+    client = mqtt.connect(brokerUrl, { clientId, clean: true, reconnectPeriod: 1000, queueQoSZero: false });
+
     client.on('connect', () => {
       console.log('Connected to MQTT broker');
       console.log(`PongAPI instanceId: ${instanceId}`);
-      Object.keys(observers).forEach(topic => {
-        client.subscribe(topic);
-      });
+      observers.forEach((callbacks, topic) => client.subscribe(topic));
+      const first = !everConnected;
+      everConnected = true;
       connected = true;
-
-      if (connectCallback && typeof connectCallback === 'function') {
-        connectCallback();
-      }
+      notifyConnection(true, first);
+      if (typeof connectCallback === 'function') connectCallback();
     });
-
-    client.on('disconnect', () => {
-      console.log('Disconnected from MQTT broker');
-      connected = false;
-
-      if (disconnectCallback && typeof disconnectCallback === 'function') {
-        disconnectCallback();
-      }
-    });
-
+    client.on('close', markDisconnected);
+    client.on('offline', markDisconnected);
+    client.on('end', markDisconnected);
+    client.on('disconnect', markDisconnected);
     client.on('error', (err) => {
       console.log('MQTT Broker Connection error:', err);
     });
 
-    client.on('message', (topic, message) => {
-      const parsedMessage = JSON.parse(message.toString());
-      if (validateMessage(topic, parsedMessage)) {
-        notifyObservers(topic, parsedMessage);
+    client.on('message', (topic, payload, packet) => {
+      let message;
+      try {
+        message = JSON.parse(payload.toString());
+      } catch (err) {
+        console.error(`PongAPI: dropping non-JSON message on ${topic}`);
+        return;
+      }
+      if (validateMessage(topic, message)) {
+        notifyObservers(topic, message, { retained: !!(packet && packet.retain) });
       }
     });
   };
 
   const stop = () => {
-    if (client) {
-      client.end();
-      client = null;
-      console.log('Disconnected from broker');
+    if (!client) return;
+    const closing = client;
+    client = null;
+    closing.removeAllListeners();
+    closing.end(true);
+    markDisconnected();
+  };
+
+  const isConnected = () => connected && client !== null;
+
+  const unregisterObserver = (topic, callback) => {
+    const callbacks = observers.get(topic);
+    if (!callbacks) return;
+    callbacks.delete(callback);
+    if (callbacks.size === 0) {
+      observers.delete(topic);
+      if (isConnected()) client.unsubscribe(topic);
     }
   };
 
-  const isConnected = () => connected;
-
+  // Returns a function that removes the observer again.
   const registerObserver = (topic, callback) => {
-    if (!observers[topic]) {
-      observers[topic] = [];
-      if (isConnected()) {
-        client.subscribe(topic);
-      }
+    if (!observers.has(topic)) {
+      observers.set(topic, new Set());
+      if (isConnected()) client.subscribe(topic);
     }
-    observers[topic].push(callback);
+    observers.get(topic).add(callback);
+    return () => unregisterObserver(topic, callback);
   };
 
-  const notifyObservers = (topic, message) => {
-    if (observers[topic]) {
-      observers[topic].forEach(callback => callback(message));
-    }
+  // Returns true if the message was handed to the client for publishing.
+  const update = (topic, message, { retain = false, qos = 0 } = {}) => {
+    if (!isConnected()) return false;
+    if (!validateMessage(topic, message)) return false;
+    client.publish(topic, JSON.stringify(message), { retain, qos });
+    return true;
   };
 
-  const validateMessage = (topic, message) => {
-    const valid = validate({ topic: message });
-    if (!valid) {
-      console.error('Invalid message:', validate.errors);
-    }
-    return valid;
-  };
-
-  const update = (topic, message) => {
-    if (isConnected()) {
-      if (validateMessage(topic, message)) {
-        const payload = JSON.stringify(message);
-        client.publish(topic, payload);
-      }
-    }
+  // listener(isConnected, { first }) -- `first` is true on the first successful connect.
+  const onConnectionChange = (listener) => {
+    connectionListeners.add(listener);
+    return () => connectionListeners.delete(listener);
   };
 
   return {
@@ -98,21 +155,12 @@ const PongAPI = (clientId, brokerUrl, connectCallback, disconnectCallback) => {
     stop,
     isConnected,
     registerObserver,
+    unregisterObserver,
     update,
+    onConnectionChange,
   };
 };
 
-PongAPI.Topics = {
-  GAME_PLAY: 'game/play',
-  GAME_STATS: 'game/stats',
-  GAME_STATE: 'game/state',
-  PADDLE_TOP_POSITION: 'paddle/top/position',
-  PADDLE_TOP_STATE: 'paddle/top/state',
-  PADDLE_TOP_STATE_TRANSITION: 'paddle/top/state_transition',
-  PADDLE_BOTTOM_POSITION: 'paddle/bottom/position',
-  PADDLE_BOTTOM_STATE: 'paddle/bottom/state',
-  PADDLE_BOTTOM_STATE_TRANSITION: 'paddle/bottom/state_transition',
-  DEPTH_FEED: 'depth/feed',
-};
+PongAPI.Topics = Topics;
 
 export default PongAPI;
