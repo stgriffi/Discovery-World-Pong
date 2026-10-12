@@ -1,23 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
+import './runtime'; // connects to MQTT and starts the game controller
 import App from './App';
-import reportWebVitals from './reportWebVitals';
-import {GameProvider} from './GameContext';
-import {GamePlayProvider} from './GamePlayContext';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <GameProvider>
-    <GamePlayProvider>
     <App />
-    </GamePlayProvider>
-    </GameProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );
-
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
