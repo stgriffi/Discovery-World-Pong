@@ -23,7 +23,7 @@ class FakeClient:
     def will_set(self, topic, payload=None, qos=0, retain=False):
         self.will = (topic, payload, qos, retain)
 
-    def publish(self, topic, payload, retain=False):
+    def publish(self, topic, payload, qos=0, retain=False):
         self.published.append((topic, json.loads(payload), retain))
 
     def subscribe(self, topic):
@@ -77,6 +77,7 @@ def test_new_transitions_validate(api):
 
 
 def test_update_validates_and_refuses_nan(api):
+    api.on_connect(api.client, None, {}, 0)
     assert api.update(Topics.PADDLE_BOTTOM_POSITION, {'position': {'x': 0.25}}) is True
     assert api.update(Topics.PADDLE_BOTTOM_POSITION, {'position': {'x': 1.5}}) is False
     assert api.update(Topics.PADDLE_BOTTOM_POSITION, {'position': {'x': float('nan')}}) is False
@@ -84,6 +85,7 @@ def test_update_validates_and_refuses_nan(api):
 
 
 def test_topics_without_a_schema_are_allowed(api):
+    api.on_connect(api.client, None, {}, 0)
     assert api.update(Topics.PADDLE_TOP, {'anything': 1}) is True
 
 
@@ -103,3 +105,25 @@ def test_subscribes_observed_topics_on_connect(api):
 def test_requires_topics_members(api):
     with pytest.raises(TypeError):
         api.update('game/state', {'transition': 'reset'})
+
+
+def test_retained_state_published_before_connecting_is_sent_on_connect(api):
+    assert api.update(Topics.PADDLE_TOP_STATE, {'state': 'start'}, retain=True) is True
+    assert api.client.published == []
+    api.on_connect(api.client, None, {}, 0)
+    assert api.client.published == [('paddle/top/state', {'state': 'start'}, True)]
+
+
+def test_retained_state_is_republished_after_a_reconnect(api):
+    api.on_connect(api.client, None, {}, 0)
+    api.update(Topics.PADDLE_BOTTOM_STATE, {'state': 'not_ready'}, retain=True)
+    api.update(Topics.PADDLE_BOTTOM_STATE, {'state': 'ready'}, retain=True)
+    api.on_disconnect(api.client, None, 1)
+    api.client.published.clear()
+    api.on_connect(api.client, None, {}, 0)
+    assert api.client.published == [('paddle/bottom/state', {'state': 'ready'}, True)]
+
+
+def test_ephemeral_messages_are_dropped_while_disconnected(api):
+    assert api.update(Topics.PADDLE_TOP_POSITION, {'position': {'x': 0.5}}) is False
+    assert api.client.published == []

@@ -59,6 +59,10 @@ class PongAPI:
         self.observers = {topic: [] for topic in Topics}
         self.validators = {topic: Draft7Validator(schema) for topic, schema in _load_schema_properties().items()}
         self._unvalidated_warned = set()
+        # Last retained message per topic (e.g. this paddle's state). Published again on
+        # every (re)connect: one sent before the connection is up would otherwise be lost,
+        # and a restarted broker may have forgotten it.
+        self._retained = {}
 
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
@@ -77,6 +81,8 @@ class PongAPI:
         for topic, observers in self.observers.items():
             if observers:
                 self.client.subscribe(topic.value)
+        for topic, payload in self._retained.items():
+            self.client.publish(topic, payload, qos=1, retain=True)
 
     def on_disconnect(self, client, userdata, rc):
         self.connected = False
@@ -152,5 +158,13 @@ class PongAPI:
         except (TypeError, ValueError) as e:
             log.error('Could not encode message for %s: %s', topic.value, e)
             return False
-        self.client.publish(topic.value, payload, retain=retain)
+        if retain:
+            self._retained[topic.value] = payload
+            if not self.connected:
+                return True  # sent as soon as the connection is up
+            self.client.publish(topic.value, payload, qos=1, retain=True)
+            return True
+        if not self.connected:
+            return False  # ephemeral data isn't worth queueing
+        self.client.publish(topic.value, payload, retain=False)
         return True
