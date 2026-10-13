@@ -4,108 +4,117 @@ Started 2026-10-12 on the dev twin (`discovery-world-pong-twin`), on Scott's for
 Goals in order: (1) no crashes, (2) reliable state machines, (3) lag-free sound, (4) round timer, (5) make TYLER play
 the way it was trained; retrain only if it's still too easy.
 
-## Branches
+**Status (2026-10-13): all five phases are done, verified on the twin, and merged to `main`.** What's left needs a
+person: hardware checks with the depth camera, sign-off on the real screens, and the retraining decision.
 
-Each phase is a branch stacked on the previous one; they merge into `main` in this order once verified:
+## Verification on the twin
 
-| Branch | Phase | State |
+| Run | Setup | Result |
 |---|---|---|
-| `feature/ball-bugfix` | 0–1: foundations, new physics + game core, Rapier removed | **merged to `main`** after a clean 40-game soak |
-| `feature/game-flow` | 2: TYLER, human paddle, Python PongAPI, Last Wills, web paddle | code + unit tests done |
-| `feature/audio` | 3: Web Audio engine, sound effects, music loops, kiosk prefs | code + unit tests done |
-| `feature/round-timer` | 4: round timer HUD | code done |
-| `feature/ai-fidelity` | 5: AI input fidelity, evaluation stats, docs | code done; integrated soak with the real AI running |
+| Phase 1 soak | new gameboard + TYLER, bot paddles, 5 s rounds, 30% walk-aways | 40 games (31 completed, 9 walk-aways), 55 min, **no failures**, no page errors, `game/play` 60 msg/s |
+| Integrated soak | all phases + real GPU AI playing TYLER | 15 games (11 completed, 4 walk-aways), **no failures** |
+| AI evaluation | all phases, real AI, 30 s rounds, 5 full games | **no failures**; levels exactly 30 s + countdown; numbers below |
+| Physics trace | `pongSim.js` vs the original training `pong.py` | identical over 7,400 ticks (≤ 1e-9) |
+| AI frame check | AI renderer vs training renderer, 2000 random states | **2000/2000** identical (old AI code: 0/2000) |
+| Unit tests | gameboard 128, TYLER 10, human paddle 52, Python PongAPI 11 | all passing |
+| Hardware smoke test | rewritten human paddle on the real D435 | camera starts, state + 13 fps depth feed published, clean shutdown |
 
-## Status
+Screenshots of every stage (gameboard + TYLER): `tools/soak/results/shot-*.png` (untracked; regenerate with
+`node tools/soak/screenshots.mjs --no-top-bot`).
 
-- [x] **Phase 0 — Foundations**: push access, CLAUDE.md, Node 22, reproducible Docker builds (TypeScript pinned to 4.9,
-      broken drei import removed, lockfile, `npm ci`), source maps, audio players created once, MP3s.
-- [x] **Phase 1 — Gameboard rewrite** (`feature/ball-bugfix`)
-  - [x] `pongSim.js` physics, matching the training environment tick-for-tick (7,400 ticks vs the original Python)
-  - [x] Shared `PongAPI` + base state machine hardening, schema fixes
-  - [x] `GameController` (game flow, gameplay machine, timers, MQTT)
-  - [x] React rewrite: always-mounted scene, one HUD, preloaded assets, error reporting + capped auto-reload; Rapier removed
-  - [x] First live soak on the twin: 3 games, no failures
-  - [x] 40-game soak: 31 games completed + 9 walk-aways, game/play at 60 msg/s across 105 levels, no
-        failures, no page errors, no duplicate transitions, no crash in 55 minutes. Merged to `main` (`685091a`).
-- [x] **Phase 2 — Game flow across services** (`feature/game-flow`)
-  - [x] TYLER: `TylerController` with per-clip fallbacks, so a blocked/failed clip can't freeze the game
-  - [x] human-paddle-control: streams positions every frame in a game, `stop` after 4 s away (`presence.py`, `blob.py`)
-  - [x] Python `PongAPI`: callback exceptions contained, validators compiled once, no NaN, async connect, Last Will
-  - [x] Last Will `stop` for both Python paddles; AI busy loop removed; web paddle mount-order bug fixed
-  - [x] Gameboard publishes `game/stats` (TYLER's faces react to scoring)
-- [x] **Phase 3 — Lag-free audio** (`feature/audio`): `dw-audio` Web Audio engine; paddle/wall/score/defeat sounds;
-      looping music; activation sound on player detection; `create_profiles.sh` writes autoplay prefs (applied on the twin)
-- [x] **Phase 4 — Round timer HUD** (`feature/round-timer`): 0:30 countdown (red for the last 5 s), SUDDEN DEATH in L3
-- [ ] **Phase 5 — AI** (`feature/ai-fidelity`)
-  - [x] Own paddle drawn at the training row, training midline, 30 px per decision, per-level models, frame-aligned
-        decisions, warm-up; TensorFlow GPU memory growth
-  - [x] Soak tool reports TYLER's return rate per level
-  - [x] Golden check (`tools/ai-check/run.sh`): the AI's frames match the training renderer in 2000/2000 random
-        states — before the fixes it matched 0/2000 (its own paddle was 18–20 pixels off in every frame)
-  - [x] TensorFlow GPU memory: 908 MiB instead of ~22.8 GB
-  - [ ] Run the AI against the soak bots and record return rates; decide on retraining
+### TYLER's AI: before vs after the input fixes (same bots, same seed, 30 s rounds)
 
-Tests: gameboard `CI=true npx react-scripts test --watchAll=false` (128), TYLER (10), human paddle pytest (52),
-Python PongAPI pytest (8), plus `tools/soak` end-to-end runs.
+| Level (model) | Old AI rally returns | Old AI serves | Fixed AI rally returns | Fixed AI serves |
+|---|---|---|---|---|
+| 1 (5000) | 21% (6/28) | 90% | 43% (15/35) | 100% |
+| 2 (15000) | 8% (2/24) | 76% | 58% (23/40) | 100% |
+| 3 (22850) | 25% (18/71) | 74% | 43% (48/113) | 100% |
+
+Longest rally: old 5 hits, fixed 15. The old AI also always used the hardest model. The fixes roughly doubled TYLER's
+returns, but it still misses more than half of rally shots against a competent bot — see "Next steps".
 
 ## Needs you
 
-- Depth-camera checks with a person in front of the RealSense: the paddle should follow you smoothly while moving,
-  and walking away for ~4 s should end the game.
-- Visual/audio sign-off on the real kiosk screens: paddles sit 7.5 px further in (the training rows), the board is
-  drawn 4% wider so the ball's edge meets the border, the round timer placement, sound volumes and left/right walls.
-- Decide on retraining once the Phase 5 evaluation numbers are in.
+- **Depth camera with a person**: start `human-paddle-control` (see below), stand on the mark: "ready" after ~1.7 s
+  still, the paddle should follow you smoothly while moving, and walking away for ~4 s should end the game.
+  On this twin the camera sees an object within 2 m (top centre of its view) and reports a player with nobody there,
+  so I left `human-paddle-control` stopped; the exhibit floor must be clear within 2 m apart from the player.
+- **Sign-off on the real screens**: paddles sit 7.5 px further in (the training rows), the board is drawn 4% wider so
+  the ball's edge meets the border, the round timer sits under LEVEL, sound volumes, left/right wall sounds.
+- **Retraining decision** (see "Next steps").
 
-## Decisions (confirmed 2026-10-12)
+## Twin state right now
 
-- Replace @react-three/rapier with a deterministic 2D physics module; keep React Three Fiber for graphics.
-- Physics copies the MSOE training environment (`git show 670d82c:src/game/pong.py`) so TYLER sees what it was trained on.
-- Rounds: L1 30 s, L2 30 s, L3 sudden death (TYLER's first point ends the game).
-- Fix human-paddle-control too; for the AI, fix input mismatches first and evaluate before retraining.
-- Commit + push as I go; merge to `main` once each phase is verified.
+- Running (compose project `pong`, `TAG=local`): `mqtt-broker`, `gameboard` (:5000), `tyler` (:5003),
+  `ai-paddle-control` (GPU). `human-paddle-control` stopped (see above). Kiosk windows are not open:
+  run `/opt/pong/setup/open_windows_pt.sh` (or log out and back in) to put the screens up.
+- The v1.2.1 containers were removed (images kept). Nothing runs `docker compose` at boot — containers come back
+  through Docker's restart policy — so **a reboot brings back this v2 stack, not v1.2.1**. To go back to v1.2.1:
+  ```bash
+  cd ~/pong-scott && COMPOSE_PROJECT_NAME=pong docker compose --profile dev --profile top-player-ai-gpu --profile bottom-player-depth down
+  cd ~/Discovery-World-Pong && TAG=1.2.1 docker compose --profile prod up -d
+  ```
+- Start the depth camera: `cd ~/pong-scott && COMPOSE_PROJECT_NAME=pong TAG=local docker compose --profile bottom-player-depth up -d human-paddle-control`
+- Kiosk Firefox profiles now carry autoplay prefs in `user.js` (written by `setup/create_profiles.sh`).
 
-## Design changes adopted during implementation
+## What changed (all on `main`)
 
-- Serve hold is 17 ticks (the exact training behavior), not 16.
-- `game/play` carries unrounded ball coordinates plus a `frame` tick id, one message per 60 Hz physics tick.
-- Walls keep the training rule (ball *center* clamped to the board); the board is drawn 200 px wide so the border
-  lines up with the ball's edge. Paddles are clamped inside the border.
-- TYLER's paddle chases the AI's latest target at ≤ 6 px/tick. (Possible later refinement: the AI echoes `frame` so
-  the gameboard applies each decision exactly 3 ticks after its frame, as in training.)
-- The "both paddles report start" dev shortcut is removed: `move_intro_complete` is only legal from `moveIntro`.
-- Only the gameboard publishes `reset`; TYLER won't (a narrator reload mustn't abort a visitor's game).
-- Restart rule: a game starts only on a paddle *becoming* ready after idle began, after a 5 s cooldown. A player who
-  stays gets a new game after the welcome screen (like v1.2.1).
-- The level clock counts physics ticks from the serve; L3 has a hidden 150 s safety cap.
-- Shared FSM/schema/PongAPI fixes moved into Phase 1 (the controller depends on them).
+- **Crash fixed by removing Rapier.** `gameboard/src/game/pongSim.js` is a line-by-line port of the training
+  physics; the scene stays mounted for the life of the page; a plain-JS `GameController` owns the game flow,
+  timers and MQTT. Root cause of the old crash: Rapier (Rust→WASM) panics when JS touches a rigid body React already
+  removed; react-three-rapier never clears forwarded refs on unmount, `ballRef` outlived `GamePlay`, and `GamePlay`
+  (with every body) was remounted between games. The panic left a borrow flag set, so every later `world.step()`
+  threw "recursive use of an object detected which would lead to unsafe aliasing in rust".
+- **State machines**: one timer bag per state (no stale level timers), hard reset on idle, edge-triggered paddle
+  states with a cooldown (no instant auto-restart), `reset` resync, watchdogs for TYLER's transitions, `player_exit`
+  that can actually fire (human paddle sends `stop`), Last Will messages, schema/validation fixed in JS and Python.
+- **TYLER** can no longer freeze the game on a blocked/failed clip (per-clip fallbacks).
+- **Human paddle** streams positions every frame during a game (it used to update about every 2 s, and only while
+  the player stood still).
+- **Audio**: shared Web Audio engine (`dw-audio`) — sounds fire in the same frame as the event; paddle, wall, score and
+  defeat sounds now play; music loops; activation sound on player detection; ~60 MB of WAV loading replaced by MP3s.
+- **Round timer**: 0:30 countdown under LEVEL (red for the last 5 s), SUDDEN DEATH in level 3.
+- **AI**: draws its paddle in the training row (+ midline), moves 30 px per decision, per-level models, decisions on
+  the gameboard's tick counter, warm-up; TensorFlow GPU memory 908 MiB instead of ~22.8 GB.
+- **Builds**: Node 22, lockfiles + `npm ci`, TypeScript pinned to 4.9 (npm resolved TypeScript 7, breaking CRA),
+  source maps on; human-paddle image fixed for RealSense's new apt signing key.
+- **Tools**: `tools/soak` (end-to-end soak + AI evaluation + screenshots), `tools/physics-trace`, `tools/ai-check`.
+
+## Next steps (suggested)
+
+1. **Make TYLER harder.** Options, cheapest first:
+   - Faster TYLER paddle or a wider TYLER paddle at deployment (the training config even has
+     `DEPLOYMENT_PADDLE_ADVANTAGE` for this) — minutes of work, tunable per level.
+   - Retrain with the original training code (`~/Discovery-World-Pong`, branch `origin/archive/non-containerized`:
+     `DiscoveryWorldPongAIExhibit/reinforcement_selfplay.py` and `.../exhibit/train/simulator.py`), on this twin's
+     RTX 3090. The gameboard physics now
+     match that environment exactly, so new models will transfer. `tools/soak` measures the result.
+   - Optional exactness: the AI echoes `frame` so the gameboard applies each decision 3 ticks after its frame, as in training.
+2. Neural-net visualizer is blank in v2 (nothing publishes `game/level`/`ai/activation`; it also has label-order and
+   level-mapping bugs and weights from different models).
+3. `.github/workflows/deploy.yml` runs `docker compose up` without a profile (starts nothing); the CI builds push to
+   `ghcr.io/aaron97neu`, which fails from this fork.
+4. Unused WAV originals are still in the repo (only the MP3s are loaded).
+
+## Decisions (confirmed 2026-10-12) and design changes made during implementation
+
+- Replace @react-three/rapier with deterministic 2D physics copied from the MSOE training environment; keep R3F.
+- Rounds: L1 30 s, L2 30 s, L3 sudden death (TYLER's first point ends it; hidden 150 s cap).
+- Serve hold is 17 ticks (exact training behavior). `game/play` is unrounded, once per 60 Hz tick, with a `frame` id.
+- Walls keep the training rule (ball *centre* clamped); the board is drawn 200 px wide to match visually.
+- TYLER's paddle chases the AI's target at ≤ 6 px/tick (training speed).
+- `move_intro_complete` only from `moveIntro` (the idle dev shortcut is gone); `player_exit` not accepted in the outro.
+- Only the gameboard publishes `reset`; TYLER doesn't (a narrator reload mustn't abort a game).
+- A game starts only on a paddle *becoming* ready after idle began, after a 5 s cooldown; a player who stays gets a
+  new game after the welcome screen (like v1.2.1).
 - Docker builds use Node 22 (Node 20 reached end-of-life in April 2026).
-- `player_exit` is not accepted during the outro, so a player leaving doesn't cut TYLER's goodbye short.
-
-## Root cause of the crash (short version)
-
-Rapier (Rust→WASM) panics when JS touches a rigid body React already removed. The panic leaves a borrow flag set, so
-every later `world.step()` throws "recursive use of an object detected which would lead to unsafe aliasing in rust".
-react-three-rapier never clears forwarded object refs on unmount, `ballRef` lived in a context that outlives
-`GamePlay`, and `GamePlay` (with all bodies) is unmounted and remounted between games.
-
-## Other notable findings
-
-- The original training code survives in `~/Discovery-World-Pong`, branch `origin/archive/non-containerized`
-  (`reinforcement.py`, `reinforcement_selfplay.py`, `exhibit/train/simulator.py`): TYLER decided every 5 ticks, each
-  action applied 3 ticks later at 6 px/tick. Retraining is feasible if needed.
-- TYLER's MP3 clips are newer edits than the WAVs (slightly different durations); the unused WAVs are still in the repo.
-- The neural-net visualizer is blank in v2 (nothing publishes `game/level`/`ai/activation`) and has its own bugs
-  (level mapping, label order, weights from a different model) — not addressed yet.
-- `.github/workflows/deploy.yml` runs `docker compose up` without a profile, which starts nothing — not addressed.
 
 ## Log
 
 - 2026-10-12 — Investigation and plan approved. Deploy key added; push verified. CLAUDE.md and this file created.
 - 2026-10-12 — Phase 0 done. Phase 1: physics (trace-verified), shared hardening, GameController, React rewrite.
-  v1.2.1 stack stopped on the twin; v2 (broker, TYLER, new gameboard) running for soak tests. First soak clean.
-- 2026-10-12 — Phases 2–5 code landed on stacked branches with unit tests; 40-game soak in progress.
-- 2026-10-13 — 40-game soak clean; `feature/ball-bugfix` merged to `main`. Full stack (all phases + GPU AI)
-  deployed on the twin. The integration run caught a regression (retained paddle states published before the
-  async MQTT connect were dropped — fixed by republishing retained state on every connect) and the timer covering
-  TYLER's paddle (moved under LEVEL). Screenshots: `tools/soak/results/shot-*.png`.
+  v1.2.1 stack stopped on the twin; v2 running for soak tests. Phases 2–5 landed on stacked branches with tests.
+- 2026-10-13 — 40-game soak clean; Phase 1 merged. Full stack + GPU AI deployed. The integration run caught two
+  issues, both fixed: retained paddle states lost before the async MQTT connect, and the timer covering TYLER's
+  paddle. Human-paddle image fixed (RealSense apt key). Integrated soak clean; AI evaluated (A/B above).
+  All branches merged to `main`.
