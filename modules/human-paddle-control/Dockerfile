@@ -57,10 +57,12 @@ RUN sudo apt-get install python3.9 -y
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.9 1
 RUN sudo apt-get install python3.9-distutils -y
 RUN apt-get install ffmpeg libsm6 libxext6 -y
+# RealSense apt repo per https://github.com/realsenseai/librealsense/blob/master/doc/distribution_linux.md
+# (the librealsense.intel.com repo is now signed with a RealSense key its old .pgp file doesn't contain).
 RUN sudo mkdir -p /etc/apt/keyrings
-RUN curl -sSf https://librealsense.intel.com/Debian/librealsense.pgp | sudo tee /etc/apt/keyrings/librealsense.pgp > /dev/null
+RUN curl -sSf https://librealsense.realsenseai.com/Debian/librealsenseai.asc | gpg --dearmor | sudo tee /etc/apt/keyrings/librealsenseai.gpg > /dev/null
 RUN sudo apt-get install apt-transport-https -y
-RUN echo "deb [signed-by=/etc/apt/keyrings/librealsense.pgp] https://librealsense.intel.com/Debian/apt-repo `lsb_release -cs` main" | sudo tee /etc/apt/sources.list.d/librealsense.list
+RUN echo "deb [signed-by=/etc/apt/keyrings/librealsenseai.gpg] https://librealsense.realsenseai.com/Debian/apt-repo `lsb_release -cs` main" | sudo tee /etc/apt/sources.list.d/librealsense.list
 RUN sudo apt-get update --fix-missing
 RUN sudo apt-get install -y librealsense2-utils
 
