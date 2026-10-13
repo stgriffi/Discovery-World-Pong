@@ -10,11 +10,11 @@ Each phase is a branch stacked on the previous one; they merge into `main` in th
 
 | Branch | Phase | State |
 |---|---|---|
-| `feature/ball-bugfix` | 0–1: foundations, new physics + game core, Rapier removed | soak test running |
+| `feature/ball-bugfix` | 0–1: foundations, new physics + game core, Rapier removed | **merged to `main`** after a clean 40-game soak |
 | `feature/game-flow` | 2: TYLER, human paddle, Python PongAPI, Last Wills, web paddle | code + unit tests done |
 | `feature/audio` | 3: Web Audio engine, sound effects, music loops, kiosk prefs | code + unit tests done |
 | `feature/round-timer` | 4: round timer HUD | code done |
-| `feature/ai-fidelity` | 5: AI input fidelity, evaluation stats, docs | code done; AI image building |
+| `feature/ai-fidelity` | 5: AI input fidelity, evaluation stats, docs | code done; integrated soak with the real AI running |
 
 ## Status
 
@@ -26,7 +26,8 @@ Each phase is a branch stacked on the previous one; they merge into `main` in th
   - [x] `GameController` (game flow, gameplay machine, timers, MQTT)
   - [x] React rewrite: always-mounted scene, one HUD, preloaded assets, error reporting + capped auto-reload; Rapier removed
   - [x] First live soak on the twin: 3 games, no failures
-  - [ ] 40-game soak (running), then merge to `main`
+  - [x] 40-game soak: 31 games completed + 9 walk-aways, game/play at 60 msg/s across 105 levels, no
+        failures, no page errors, no duplicate transitions, no crash in 55 minutes. Merged to `main` (`685091a`).
 - [x] **Phase 2 — Game flow across services** (`feature/game-flow`)
   - [x] TYLER: `TylerController` with per-clip fallbacks, so a blocked/failed clip can't freeze the game
   - [x] human-paddle-control: streams positions every frame in a game, `stop` after 4 s away (`presence.py`, `blob.py`)
@@ -40,6 +41,9 @@ Each phase is a branch stacked on the previous one; they merge into `main` in th
   - [x] Own paddle drawn at the training row, training midline, 30 px per decision, per-level models, frame-aligned
         decisions, warm-up; TensorFlow GPU memory growth
   - [x] Soak tool reports TYLER's return rate per level
+  - [x] Golden check (`tools/ai-check/run.sh`): the AI's frames match the training renderer in 2000/2000 random
+        states — before the fixes it matched 0/2000 (its own paddle was 18–20 pixels off in every frame)
+  - [x] TensorFlow GPU memory: 908 MiB instead of ~22.8 GB
   - [ ] Run the AI against the soak bots and record return rates; decide on retraining
 
 Tests: gameboard `CI=true npx react-scripts test --watchAll=false` (128), TYLER (10), human paddle pytest (52),
@@ -101,3 +105,7 @@ react-three-rapier never clears forwarded object refs on unmount, `ballRef` live
 - 2026-10-12 — Phase 0 done. Phase 1: physics (trace-verified), shared hardening, GameController, React rewrite.
   v1.2.1 stack stopped on the twin; v2 (broker, TYLER, new gameboard) running for soak tests. First soak clean.
 - 2026-10-12 — Phases 2–5 code landed on stacked branches with unit tests; 40-game soak in progress.
+- 2026-10-13 — 40-game soak clean; `feature/ball-bugfix` merged to `main`. Full stack (all phases + GPU AI)
+  deployed on the twin. The integration run caught a regression (retained paddle states published before the
+  async MQTT connect were dropped — fixed by republishing retained state on every connect) and the timer covering
+  TYLER's paddle (moved under LEVEL). Screenshots: `tools/soak/results/shot-*.png`.
