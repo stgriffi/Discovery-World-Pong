@@ -199,6 +199,21 @@
         }
       },
       "required": ["feed"]
+    },
+    "game/level": {
+      "description": "Which of TYLER's networks is playing, 0 between games (retained)",
+      "type": "object",
+      "properties": {
+        "level": { "type": "integer", "minimum": 0, "maximum": 3 }
+      },
+      "required": ["level"]
+    },
+    "ai/activation": {
+      "description": "After each AI decision: [input frame (80 x 96, row-major), hidden layer (200), outputs (left, right, none)]",
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "type": "array" }
     }
   }
 }

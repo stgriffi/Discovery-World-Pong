@@ -8,11 +8,14 @@ const NEURON_COLOR = "#000000"
 const NEURON_COLOR_ACTIVE = "#DD2222"
 const ACTIVE_WEIGHT_THRESHOLD = 1
 
-// For benchmarking
+// For benchmarking. Off by default: console.log goes out over MQTT, and every frame times
+// several steps.
+const LOG_TIMERS = false;
 var timer = function (name) {
     var start = new Date();
     return {
         stop: function () {
+            if (!LOG_TIMERS) return;
             var end = new Date();
             var time = end.getTime() - start.getTime();
             console.log('Timer:', name, 'finished in', time, 'ms');

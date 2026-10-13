@@ -109,19 +109,15 @@ class PGAgent:
 
     def get_activation_packet(self):
         """
-        Returns the state of the model suitable for realtime visualization
-        :return: Model weights (list of 2d lists), biases (list of 1d lists),
+        Returns the state of the model suitable for realtime visualization (ai/activation)
+        :return: [input frame (the frame difference the network saw, flattened 80 x 96),
+                  hidden layer activations, output probabilities (left, right, none)]
         """
-        import time
-        t1 = time.perf_counter()
-        # First, get input activations (the last preprocessed state)
-        input_activation = self.last_state.tolist()
-
-        # Then, get hidden layer activations (using the truncated model)
-        hidden_activations = self.last_hidden_activation.tolist()
-
-        # Finally, store output activations (model prediction)
-        output_activations = self.last_output.tolist()
+        # Rounded to keep the message small (it goes out with every decision). The frame
+        # difference only holds -1, 0 and 1.
+        input_activation = np.rint(self.last_state).astype(int).tolist()
+        hidden_activations = np.round(self.last_hidden_activation.astype(float), 4).tolist()
+        output_activations = np.round(self.last_output.astype(float), 4).tolist()
 
         return [input_activation, hidden_activations, output_activations]
 

@@ -84,6 +84,15 @@ def test_update_validates_and_refuses_nan(api):
     assert api.client.published == [('paddle/bottom/position', {'position': {'x': 0.25}}, False)]
 
 
+def test_neural_net_visualizer_messages_validate(api):
+    assert api.validate_message('game/level', {'level': 0})
+    assert api.validate_message('game/level', {'level': 3})
+    assert not api.validate_message('game/level', {'level': 4})
+    packet = [[0, 1, -1] * 2560, [0.5] * 200, [0.2, 0.3, 0.5]]
+    assert api.validate_message('ai/activation', packet)
+    assert not api.validate_message('ai/activation', packet[:2])
+
+
 def test_topics_without_a_schema_are_allowed(api):
     api.on_connect(api.client, None, {}, 0)
     assert api.update(Topics.PADDLE_TOP, {'anything': 1}) is True

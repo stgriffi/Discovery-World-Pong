@@ -4,6 +4,8 @@ const Topics = Object.freeze({
   GAME_PLAY: 'game/play',
   GAME_STATS: 'game/stats',
   GAME_STATE: 'game/state',
+  GAME_LEVEL: 'game/level',
+  AI_ACTIVATION: 'ai/activation',
   PADDLE_TOP_POSITION: 'paddle/top/position',
   PADDLE_TOP_STATE: 'paddle/top/state',
   PADDLE_TOP_STATE_TRANSITION: 'paddle/top/state_transition',

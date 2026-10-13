@@ -16,14 +16,18 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
-COPY --from=util . ./shared
-
 COPY requirements.txt .
 
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-RUN python -m pip install --upgrade pip && python -m pip install --no-compile --no-cache-dir -r requirements.txt 
+RUN python -m pip install --upgrade pip && python -m pip install --no-compile --no-cache-dir -r requirements.txt
+
+# Draw the networks TYLER actually plays with: export the AI's model files (dw Config.AI_MODELS).
+COPY --from=util ./py_packages/dw/config.py ./dw_config.py
+COPY --from=util ./validation ./validation
+COPY export_weights.py .
+RUN python export_weights.py dw_config.py validation models
 
 FROM ssl_${CERTS} AS final
 
@@ -32,13 +36,9 @@ LABEL org.opencontainers.image.licenses=MIT
 
 WORKDIR /app
 
-COPY --from=builder /app .
-COPY --from=builder /opt/venv /opt/venv
-COPY --from=models . visualizer/models/
-
+# The page server (visualization_driver.py) only needs the standard library.
 COPY . .
-
-ENV PATH="/opt/venv/bin:$PATH"
+COPY --from=builder /app/models visualizer/models/
 
 CMD ["python", "visualization_driver.py"]
 

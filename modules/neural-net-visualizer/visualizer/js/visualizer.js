@@ -37,9 +37,7 @@ function onMessageArrived(message) {
         // frame if we get a new one before the next render - no need to waste cycles
         last_activations = message.payloadString;
     } else if (message.destinationName === "game/level") {
-        level = JSON.parse(message.payloadString)["level"];
-        model_initialized = false;
-        init_model(level);
+        init_model(JSON.parse(message.payloadString)["level"]);
     }
 }
 
@@ -106,12 +104,6 @@ function render_tick(ctx, render_frame, state_frame, hl_activations, ol_activati
     // Clean slate before redraw
     ctx.clearRect(0, 0, canvas_width, canvas_height);
 
-    // Update rendered probabilities
-    percent_prob = scale(ol_activations, 100)
-    up_prob = parseFloat(percent_prob[0]).toFixed(2) + "%"
-    down_prob = parseFloat(percent_prob[1]).toFixed(2) + "%"
-    none_prob = parseFloat(percent_prob[2]).toFixed(2) + "%"
-
     let t = timer("render_game");
     // Render game frame
     render_game(ctx, render_frame);
@@ -150,96 +142,84 @@ function render_tick(ctx, render_frame, state_frame, hl_activations, ol_activati
     t.stop()
 
     // Create dynamic labels for inference confidence
-    up_pos = out_pos[0]
-    none_pos = out_pos[1]
-    down_pos = out_pos[2]
     ctx.font = TITLE_FONT;
     ctx.textAlign = "center";
-    ctx.fillText(up_prob, up_pos[0], up_pos[1] - 40);
-    ctx.fillText(down_prob, down_pos[0], down_pos[1] - 40);
-    ctx.fillText(none_prob, none_pos[0], none_pos[1] - 40);
+    for (let i = 0; i < ol_activations.length; i++) {
+        ctx.fillText((ol_activations[i] * 100).toFixed(2) + "%", out_pos[i][0], out_pos[i][1] - 40);
+    }
 }
 
 function render_loop() {
-    if (last_activations && last_activations != last_rendered_activations) {
+    if (model_initialized && last_activations && last_activations != last_rendered_activations) {
         const ctx = canvas.getContext("2d");
         const [state_frame, hl_activations, ol_activations] = JSON.parse(last_activations);
-        render_tick(ctx, state_frame, state_frame, hl_activations, ol_activations);
+        const ordered_outputs = OUTPUT_ORDER.map(i => ol_activations[i]);
+        render_tick(ctx, state_frame, state_frame, hl_activations, ordered_outputs);
         last_rendered_activations = last_activations;
     }
-    // Break out of render loop if we receive a new model to render
-    if (model_initialized) {
-        requestAnimationFrame(render_loop);
-    }
+    requestAnimationFrame(render_loop);
 }
 
 function init_model(level) {
     /*
-    This initialization runs any time we receive a new model structure.
-    It renders its weights and precomputes any convenient values for later use in realtime rendering.
+    This initialization runs any time the level, and so TYLER's network, changes (game/level:
+    1-3 during a game, 0 between games). It renders its weights and precomputes any
+    convenient values for later use in realtime rendering.
     */
-    if (!initialized) {
-        // Busy wait if we receive a new model before the normal init is run.
-        init_model(structure);
-    } else {
-        level += 1;
-        const ctx = canvas.getContext("2d");
-        structure = null;
-        switch (level) {
-            case 1:
-                structure = easy_model;
-                break;
-            case 2:
-                structure = medium_model;
-                break;
-            case 3:
-                structure = hard_model;
-                break;
-        }
-        // Parse out the structure
-        hidden_weights = structure[0];
-        hidden_biases = structure[1];
-        output_weights = structure[2];
-        output_biases = structure[3];
-
-        // Store image-related rendering measurements
-        const pixel_dims = [frame_width, frame_height]
-        img_coords = [img_x, img_y]
-        img_size = [img_w, img_h]
-        top_corner = [img_x, img_y]
-        pixel_step = img_size[1] / pixel_dims[1]
-
-        // Calculate positions of individual pixels, for use as a "layer" to connect edges
-        pixel_pos = []
-        for (let y = 0; y < pixel_dims[1]; y++) {
-            for (let x = 0; x < pixel_dims[0]; x++) {
-                x_pos = (x * pixel_step) + top_corner[0] + (pixel_step / 2)
-                y_pos = (y * pixel_step) + top_corner[1] + (pixel_step / 2)
-                pixel_pos.push([x_pos, y_pos])
-            }
-        }
-
-        rescaled_hw = render_rescale(hidden_weights);
-
-        // Save the "significant" weights: we only render the 2% most important hidden weights and
-        // the 30% most important output weights so the screen doesn't get crowded
-        significant_hw = is_significant(hidden_weights, 0.02);
-        significant_ow = is_significant(output_weights, 0.3)
-
-        // Determine appropriate base size for a neuron based on minimum allowable padding for a specific layer
-        // Disalow negative neuron sizes, if there is not enough room, the neurons will overlap
-        NEURON_SIZE = max([(canvas_width - (hidden_biases.length * MIN_PADDING)) / (hidden_biases.length), 1]);
-
-        // Render neuron nodes, saving calculated positions for weight rendering
-        hidden_pos = render_layer(ctx, render_rescale(hidden_biases, 1), 0,
-            canvas_width, HIDDEN_LAYER_Y * canvas_height, NEURON_SIZE)
-
-        out_pos = render_layer(ctx, render_rescale(output_biases, 1), 0,
-            canvas_width, OUTPUT_LAYER_Y * canvas_height, NEURON_SIZE, null, OUTPUT_LABELS)
-
-        model_initialized = true;
-        requestAnimationFrame(render_loop);
+    if (level === current_level) return; // retained copies arrive again on reconnects
+    current_level = level;
+    model_initialized = false;
+    last_activations = null;
+    const ctx = canvas.getContext("2d");
+    const structure = { 1: easy_model, 2: medium_model, 3: hard_model }[level];
+    if (!structure) {
+        // Between games: blank until TYLER plays again.
+        ctx.clearRect(0, 0, canvas_width, canvas_height);
+        return;
     }
+    // Parse out the structure. The outputs are drawn as LEFT, NONE, RIGHT.
+    hidden_weights = structure[0];
+    hidden_biases = structure[1];
+    output_weights = structure[2].map(row => OUTPUT_ORDER.map(i => row[i]));
+    output_biases = OUTPUT_ORDER.map(i => structure[3][i]);
+
+    // Store image-related rendering measurements
+    const pixel_dims = [frame_width, frame_height]
+    img_coords = [img_x, img_y]
+    img_size = [img_w, img_h]
+    top_corner = [img_x, img_y]
+    pixel_step = img_size[1] / pixel_dims[1]
+
+    // Calculate positions of individual pixels, for use as a "layer" to connect edges
+    pixel_pos = []
+    for (let y = 0; y < pixel_dims[1]; y++) {
+        for (let x = 0; x < pixel_dims[0]; x++) {
+            x_pos = (x * pixel_step) + top_corner[0] + (pixel_step / 2)
+            y_pos = (y * pixel_step) + top_corner[1] + (pixel_step / 2)
+            pixel_pos.push([x_pos, y_pos])
+        }
+    }
+
+    rescaled_hw = render_rescale(hidden_weights);
+
+    // Save the "significant" weights: we only render the 2% most important hidden weights and
+    // the 30% most important output weights so the screen doesn't get crowded
+    significant_hw = is_significant(hidden_weights, 0.02);
+    significant_ow = is_significant(output_weights, 0.3)
+
+    // Determine appropriate base size for a neuron based on minimum allowable padding for a specific layer
+    // Disalow negative neuron sizes, if there is not enough room, the neurons will overlap
+    NEURON_SIZE = max([(canvas_width - (hidden_biases.length * MIN_PADDING)) / (hidden_biases.length), 1]);
+
+    // Render neuron nodes, saving calculated positions for weight rendering
+    ctx.clearRect(0, 0, canvas_width, canvas_height);
+    hidden_pos = render_layer(ctx, render_rescale(hidden_biases, 1), 0,
+        canvas_width, HIDDEN_LAYER_Y * canvas_height, NEURON_SIZE)
+
+    out_pos = render_layer(ctx, render_rescale(output_biases, 1), 0,
+        canvas_width, OUTPUT_LAYER_Y * canvas_height, NEURON_SIZE, null, OUTPUT_LABELS)
+
+    model_initialized = true;
 }
 
 function init() {
@@ -248,17 +228,6 @@ function init() {
     Basic housekeeping initialization. Makes sure the canvases we need
     exist, and do any precomputing or sizing that aren't model dependent.
     */
-    // Create a client instance
-    cid = "neural-net-visualizer-" + Math.random().toString(16).slice(2)
-    client = new Paho.Client("localhost", 9001, cid);
-
-    // set callback handlers
-    client.onConnectionLost = onConnectionLost;
-    client.onMessageArrived = onMessageArrived;
-
-    // connect the client
-    client.connect({ onSuccess: onConnect, reconnect: true });
-    
     canvas = document.getElementById("visualizer");
     const ctx = canvas.getContext("2d");
 
@@ -279,6 +248,18 @@ function init() {
     weightImageCanvas = document.createElement('canvas');
 
     initialized = true;
+    requestAnimationFrame(render_loop);
+
+    // Connect last: the retained game/level arrives straight away and needs the canvas.
+    cid = "neural-net-visualizer-" + Math.random().toString(16).slice(2)
+    client = new Paho.Client("localhost", 9001, cid);
+
+    // set callback handlers
+    client.onConnectionLost = onConnectionLost;
+    client.onMessageArrived = onMessageArrived;
+
+    // connect the client
+    client.connect({ onSuccess: onConnect, reconnect: true });
 }
 
 // Intentionally global. Canvas is for base drawing. Frame canvas holds game frame images.
@@ -289,6 +270,7 @@ var weightImageCanvas = null;
 // Track initialization status
 var initialized = false;
 var model_initialized = false;
+var current_level = null; // game/level being drawn (0 = between games)
 
 // Structure data
 var hidden_weights = null;
@@ -314,6 +296,7 @@ var MIN_PADDING = 3;
 var HIDDEN_LAYER_Y = 0.35;
 var OUTPUT_LAYER_Y = 0.1;
 var OUTPUT_LABELS = ["LEFT", "NONE", "RIGHT"]
+var OUTPUT_ORDER = [0, 2, 1]; // the network's outputs are left, right, none
 var image_upscale = 4;
 var frame_width = 192 / 2; // Base state dimension, scaled down by two
 var frame_height = 160 / 2;

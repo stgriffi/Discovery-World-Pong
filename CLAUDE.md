@@ -16,7 +16,7 @@ tracked in `PROGRESS.md`.
 |---|---|---|
 | `gameboard` | 5000 | Game screen (React Three Fiber) on a plain-JS game core: physics, in-level gameplay, level clock, HUD, music and sound effects. Publishes `game/play`, `game/stats` and most game-flow transitions. |
 | `human-visualizer` | 5001 | Depth-camera heatmap (static page, subscribes `depth/feed`). |
-| `neural-net-visualizer` | 5002 | Draws TYLER's network (static page; subscribes `game/level`, `ai/activation`, which nothing publishes in v2). |
+| `neural-net-visualizer` | 5002 | Draws TYLER's network live (static page): `game/level` picks the network (blank at 0, between games), `ai/activation` animates it. Its weight files are exported from the AI's model files during the image build (`export_weights.py`). |
 | `tyler` | 5003 | TYLER character + voice clips (React). Narrates and drives the intro/level-intro/outro transitions. |
 | `web-paddle-control` | 5004 / 5005 | Dev-only button paddles (top / bottom), built twice from one image with `REACT_APP_PADDLE_ID`. |
 | `single-screen-development` | 5006 | Dev dashboard (Vite/TS) showing all screens in iframes plus logs. |
@@ -27,8 +27,8 @@ tracked in `PROGRESS.md`.
 
 `modules/shared/`: `schema/PongAPISchema.json` (canonical MQTT schema), `js_packages/dw/state-machine` (`PongAPI`,
 `Topics`, `createBaseGameStateMachine`) and `js_packages/dw/audio` (Web Audio engine) — consumed by the JS apps as
-`file:` dependencies — `py_packages/dw` (Python `PongAPI`, `Topics`, `Config`), `validation/*.h5` (AI weights),
-`models/*.js` (weights for the NN visualizer).
+`file:` dependencies — `py_packages/dw` (Python `PongAPI`, `Topics`, `Config`) and `validation/*.h5` (AI weights;
+`Config.AI_MODELS` names the one used for each level, for both the AI and the NN visualizer's build).
 
 ## Commands
 
@@ -89,7 +89,9 @@ tools/physics-trace/run.sh                                        # regenerate t
   can't abort a game), `player_ready`, `player_exit`, `level1_complete`/`level2_complete` (30 s game clock from the
   serve), `level3_complete` (L3 is sudden death: TYLER's first point ends it; hidden 150 s cap), and watchdog
   copies of TYLER's transitions if TYLER stays silent. TYLER → `intro_complete`, `move_intro_complete`,
-  `level1/2/3_intro_complete`, `game_complete` when its clips finish (with its own timeout fallback).
+  `level1/2/3_intro_complete`, `game_complete` when its clips finish (with its own timeout fallback). For the
+  neural-net visualizer: gameboard → `game/level` (retained; 1–3 from each level intro, 0 in idle), AI →
+  `ai/activation` after every decision (`[frame difference 80×96, hidden 200, outputs left/right/none]`).
 - **Starting and ending games**: a game starts only when the bottom paddle *becomes* `ready` after idle began, the
   top paddle is `ready`/`start`, and a cooldown has passed (3 s after page load, 5 s after a game). A paddle state
   `stop` ends the game. The human paddle sends `stop` after 4 s without a player; both Python paddles set an MQTT

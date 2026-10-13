@@ -13,10 +13,10 @@
         integrity="sha384-Ljvyu+Te8lhYTZmOKkTuUHeKBt1i/g8TBMb1lDHfgOlI3c0ZTKEN9KVPBM/priIP" crossorigin="anonymous"
         type="text/javascript">
         </script>
-    <!-- Scripts from `models/` dir are found in /src/shared/models, and brought
-     in during buildtime. (See docker-compose.yml and Dockerfile) These scripts 
-     provide the model weights which are used in conjunction with activation 
-     MQTT packets to provide neuron activation visualization -->
+    <!-- Scripts in `models/` are generated during the image build from the AI's own
+     model files (export_weights.py, see the Dockerfile). These scripts provide the
+     model weights which are used in conjunction with activation MQTT packets
+     (ai/activation) to provide neuron activation visualization -->
     <script src="models/easy.js"></script>
     <script src="models/medium.js"></script>
     <script src="models/hard.js"></script>

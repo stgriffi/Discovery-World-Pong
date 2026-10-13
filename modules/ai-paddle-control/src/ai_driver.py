@@ -1,3 +1,4 @@
+import os
 import threading
 import sys
 import time
@@ -25,14 +26,11 @@ class AIDriver:
     # MODEL_2 = f'./validation/canstop_randomstart_6850.h5'
     # MODEL_3 = f'./validation/canstop_randomstart_10k.h5'
 
-    # The locations of the three models used. 1 for each level.
-    MODEL_1 = "./validation/smoothreward_s6_f5_d3_5000.h5"
-    MODEL_2 = "./validation/smoothreward_s6_f5_d3_15000.h5"
-    MODEL_3 = "./validation/smoothreward_s6_f5_d3_22850.h5"
+    # One model per level, harder each level: Config.AI_MODELS names the files in this folder.
+    MODEL_DIR = "./validation"
     level = 1
     def publish_inference(self):
-        # One model per level, harder each level.
-        self.agent = {1: self.agent1, 2: self.agent2, 3: self.agent3}.get(self.state.game_level, self.agent1)
+        self.agent = self.agents.get(self.state.game_level, self.agents[1])
 
         # Get latest state diff
         diff_state = self.state.render_latest_diff()   
@@ -74,6 +72,9 @@ class AIDriver:
         if self.paddle1:
             self.state.publish(Topics.PADDLE_TOP_POSITION, {"position": {"x": target / self.config.WIDTH}})
 
+        # What TYLER saw and how it decided, for the neural-net visualizer.
+        self.state.publish(Topics.AI_ACTIVATION, self.agent.get_activation_packet())
+
         #if len(self.frame_diffs) > 10:
         #    print(
         #        f"Frame distribution: mean {np.mean(self.frame_diffs)}"
@@ -99,17 +100,14 @@ class AIDriver:
         self.paddle2 = not self.paddle1
 
         # We have all 3 agents already loaded instead of loading between levels. Saves a lot of time and prevents freezing
-        self.agent1 = PGAgent(self.config.CUSTOM_STATE_SIZE, self.config.CUSTOM_ACTION_SIZE)
-        self.agent1.load(AIDriver.MODEL_1)
-        self.agent = self.agent1
-        self.agent2 = PGAgent(self.config.CUSTOM_STATE_SIZE, self.config.CUSTOM_ACTION_SIZE)
-        self.agent2.load(AIDriver.MODEL_2)
-        self.agent3 = PGAgent(self.config.CUSTOM_STATE_SIZE, self.config.CUSTOM_ACTION_SIZE)
-        self.agent3.load(AIDriver.MODEL_3)
+        self.agents = {}
+        for level, model in self.config.AI_MODELS.items():
+            self.agents[level] = PGAgent(self.config.CUSTOM_STATE_SIZE, self.config.CUSTOM_ACTION_SIZE)
+            self.agents[level].load(os.path.join(AIDriver.MODEL_DIR, model))
         # The first inference on each model is slow; get it out of the way before games start.
-        for agent in (self.agent1, self.agent2, self.agent3):
+        for agent in self.agents.values():
             agent.act(np.zeros(self.config.CUSTOM_STATE_SIZE), greedy=True)
-        self.agent = self.agent1
+        self.agent = self.agents[1]
         self.state = AISubscriber(self.config, trigger_event=lambda: self.publish_inference())
         self.last_frame_id = self.state.frame
         self.last_tick = time.time()

@@ -163,6 +163,26 @@ describe('a full game', () => {
     expect(stats.some((m) => m.level === 1 && m.player_top.score === 0 && m.player_bottom.score === 0)).toBe(true);
   });
 
+  test('publishes the level for the neural-net visualizer, retained, and 0 between games', () => {
+    setup();
+    advance(10);
+    expect(broker.published('game/level', 'gameboard')).toEqual([{ level: 0 }]);
+    humanPosition(0.5);
+    playToLevel1();
+    advance(4 * 500 + 17 * 17 + 3000 + 200);
+    tylerSays('level2_intro_complete');
+    advance(2000 + 17 * 17 + 3000 + 500);
+    expect(base()).toBe('level3Intro');
+    tylerSays('level3_intro_complete');
+    humanPosition(0.03);
+    advance(2000 + 17 * 17 + 8000);
+    tylerSays('game_complete');
+
+    const levels = broker.history.filter((h) => h.topic === 'game/level' && h.from === 'gameboard');
+    expect(levels.map((h) => h.message.level)).toEqual([0, 1, 2, 3, 0]);
+    expect(levels.every((h) => h.retain)).toBe(true);
+  });
+
   test('nothing is published on game/play while idle or during intros', () => {
     setup();
     startGame();

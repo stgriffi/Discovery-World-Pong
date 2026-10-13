@@ -52,8 +52,11 @@ Similar to the Human Player visualization, a plain js, python http server is imp
 All paddle positioning decisions are made in API ai_paddle_control. refer to **docs/AI_method.md** for more specific information.
 
 ### Code Objective
-The neural networks are reading the AI matrix from the shared resource **/src/shared/models**, 
-and this neural network visualizer has helper functions/methods to understand the a select range of neuron(there are billions) decisions being made.
+The visualizer draws TYLER's network for the current level (`game/level`, published by the gameboard: 1-3 during a
+game, 0 between games), and has helper functions/methods to understand a select range of neuron decisions being made.
 
-Scripts from `models/` dir are found in **/src/shared/models**, and brought in during buildtime. (See docker-compose.yml and Dockerfile)
-These scripts provide the model weights which are used in conjunction with activation MQTT packets to provide neuron activation visualization
+The scripts in `visualizer/models/` (`easy.js`, `medium.js`, `hard.js`) are generated during the image build by
+`export_weights.py` from the same model files the AI loads (`Config.AI_MODELS` in `shared/py_packages/dw/config.py`,
+files in `shared/validation`). These scripts provide the model weights which are used in conjunction with the
+activation MQTT packets (`ai/activation`, published by ai-paddle-control after every decision) to provide neuron
+activation visualization.

@@ -14,6 +14,8 @@ class Topics(Enum):
     GAME_PLAY = 'game/play'
     GAME_STATS = 'game/stats'
     GAME_STATE = 'game/state'
+    GAME_LEVEL = 'game/level'
+    AI_ACTIVATION = 'ai/activation'
     PADDLE_TOP = 'paddle/top'
     PADDLE_BOTTOM = 'paddle/bottom'
     PADDLE_TOP_POSITION = 'paddle/top/position'

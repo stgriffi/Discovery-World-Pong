@@ -32,6 +32,13 @@ class Config:
         self.GAME_FPS = 60
         self.AI_FRAME_INTERVAL = 5  # AI will publish inference every n frames
         self.AI_FRAME_DELAY = 3  # Game will receive each inference n frames late
+        # TYLER's network for each level (files in shared/validation). The neural-net
+        # visualizer's image build exports these same files, so it draws the networks in use.
+        self.AI_MODELS = {
+            1: 'smoothreward_s6_f5_d3_5000.h5',
+            2: 'smoothreward_s6_f5_d3_15000.h5',
+            3: 'smoothreward_s6_f5_d3_22850.h5',
+        }
         self.BALL_MARKER_SIZE = 4  # Pixel height and width of experimental position markers
         self.CUSTOM = 0
         self.HIT_PRACTICE = 2

@@ -9,7 +9,7 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
 export function createFakeBroker() {
   const subscribers = new Map(); // topic -> Set of { client, callback }
   const retained = new Map();
-  const history = []; // { from, topic, message, at }
+  const history = []; // { from, topic, message, retain, at }
   const invalid = [];
 
   function deliver(topic, message, isRetained) {
@@ -44,7 +44,7 @@ export function createFakeBroker() {
           invalid.push({ from: name, topic, message });
           return false;
         }
-        history.push({ from: name, topic, message: clone(message), at: Date.now() });
+        history.push({ from: name, topic, message: clone(message), retain, at: Date.now() });
         if (retain) retained.set(topic, clone(message));
         deliver(topic, message, false);
         return true;

@@ -126,7 +126,6 @@ services:
             context: ./modules/neural-net-visualizer
             additional_contexts:
                 util: ./modules/shared
-                models: ./modules/shared/models
                 certs: ./certs
         profiles: [dev, prod]
         ports:

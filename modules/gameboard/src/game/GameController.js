@@ -168,6 +168,12 @@ export function createGameController({
     });
   }
 
+  // Which of TYLER's networks is playing (0 between games), for the neural-net visualizer.
+  // Retained, so a visualizer that reloads mid-game draws the right network straight away.
+  function publishLevel() {
+    api.update(Topics.GAME_LEVEL, { level }, { retain: true, qos: 1 });
+  }
+
   // Tell the paddles a point/level is starting over. Fire-and-forget: nothing waits for
   // an answer (no paddle service ever sent one; the old handshake only saw its own echo).
   function publishPaddleResets() {
@@ -318,6 +324,7 @@ export function createGameController({
       timerText: TEXT.BLANK,
     });
     publishStats();
+    publishLevel();
     idleEnteredAt = now();
     cooldownMs = booting ? cfg.bootCooldownMs : cfg.postGameCooldownMs;
     readyIgnoreMs = cfg.readyIgnoreMs;
@@ -337,6 +344,7 @@ export function createGameController({
       timerText: n < 3 ? formatClock(clockTicks) : TEXT.SUDDEN_DEATH,
     });
     publishStats();
+    publishLevel();
     enterGameplay('levelIntro');
   }
 
@@ -443,6 +451,7 @@ export function createGameController({
       // Bring TYLER (and anything else) back in step with this freshly loaded gameboard.
       resetPublished = api.update(Topics.GAME_STATE, { transition: 'reset' });
     }
+    publishLevel(); // the broker forgets retained messages if it restarts
     evaluateStart();
   }
 
