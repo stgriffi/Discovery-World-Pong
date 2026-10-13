@@ -10,6 +10,9 @@ jobs:
   # Deploy using our `deploy.yml` workflow, which does the brunt of the work.
   # We are just setting development-specific arguments
   physical-twin:
+    # Only a repository set up to reach the twin (this variable plus the VPN/SSH secrets) can deploy;
+    # anywhere else, such as a fork, the job is skipped instead of failing.
+    if: vars.PHYSICALTWIN_PUBKEY != ''
     uses: ./.github/workflows/deploy.yml
     with:
       branch: main

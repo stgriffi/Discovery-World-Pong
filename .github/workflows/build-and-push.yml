@@ -7,12 +7,16 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  # Images are pushed only from the repository this account owns: a job's GITHUB_TOKEN can't push
+  # to another account's packages, so forks (like pull requests) build the images without pushing.
   ORG: aaron97neu
   CONTAINER_DIR: modules
 
 jobs:
   build-and-push-services:
     strategy:
+      # One module failing shouldn't cancel (and hide the results of) the others.
+      fail-fast: false
       matrix:
         module:
           - ai-paddle-control
@@ -52,7 +56,7 @@ jobs:
         run: echo ${{ steps.buildx.outputs.platforms }}
 
       - name: Login to DockerHub
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.repository_owner == env.ORG
         uses: docker/login-action@v3.3.0
         with:
           registry: ${{ env.REGISTRY }}
@@ -109,7 +113,7 @@ jobs:
           files: |
             docker-compose.yml
             ${{ steps.meta.outputs.bake-file }}
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name != 'pull_request' && github.repository_owner == env.ORG }}
           targets: ${{ matrix.module }}
           set: |
             ${{ matrix.module }}.cache-from=type=gha
